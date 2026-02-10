@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [borrowers] = useState<Borrower[]>(MOCK_BORROWERS);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isMapMode, setIsMapMode] = useState(false); // Track if a country is selected
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,14 +48,19 @@ const App: React.FC = () => {
             <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
             <Environment preset="city" />
             
-            <Globe borrowers={borrowers} onSelectBorrower={setSelectedBorrower} />
+            <Globe 
+              borrowers={borrowers} 
+              onSelectBorrower={setSelectedBorrower} 
+              onMapModeChange={setIsMapMode}
+            />
             
             <OrbitControls 
+              makeDefault
               enablePan={false} 
               enableZoom={true} 
-              minDistance={3.5} 
-              maxDistance={10}
-              autoRotate={!selectedBorrower}
+              minDistance={2.6} // Allow zooming in closer
+              maxDistance={12}
+              autoRotate={!selectedBorrower && !isMapMode} // Stop rotation if borrower selected OR map mode active
               autoRotateSpeed={0.5}
             />
           </Suspense>

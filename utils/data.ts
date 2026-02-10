@@ -18,14 +18,20 @@ const CITIES = [
   { city: 'Cape Town', country: 'South Africa', lat: -33.9249, lng: 18.4241 },
   { city: 'Kigali', country: 'Rwanda', lat: -1.9441, lng: 30.0619 },
   { city: 'Huye', country: 'Rwanda', lat: -2.6000, lng: 29.7333 },
+  { city: 'Rubavu', country: 'Rwanda', lat: -1.67409, lng: 29.2562 },
+  { city: 'Musanze', country: 'Rwanda', lat: -1.5000, lng: 29.6333 },
+  { city: 'Rusizi', country: 'Rwanda', lat: -2.4833, lng: 28.9000 },
+  { city: 'Nyagatare', country: 'Rwanda', lat: -1.2974, lng: 30.3283 },
 ];
 
 export const generateBorrowers = (count: number): Borrower[] => {
   return Array.from({ length: count }).map((_, i) => {
     const cityData = CITIES[i % CITIES.length];
     // Add some random jitter to coords so they don't stack perfectly.
-    const lat = cityData.lat + (Math.random() - 0.5) * 0.5;
-    const lng = cityData.lng + (Math.random() - 0.5) * 0.5;
+    // Reduced jitter for Rwanda cities to keep them tight
+    const jitter = cityData.country === 'Rwanda' ? 0.15 : 0.5;
+    const lat = cityData.lat + (Math.random() - 0.5) * jitter;
+    const lng = cityData.lng + (Math.random() - 0.5) * jitter;
     
     const creditScore = Math.floor(Math.random() * (850 - 300) + 300);
     let riskLevel: 'Low' | 'Medium' | 'High' = 'Medium';
@@ -49,4 +55,4 @@ export const generateBorrowers = (count: number): Borrower[] => {
   });
 };
 
-export const MOCK_BORROWERS = generateBorrowers(50);
+export const MOCK_BORROWERS = generateBorrowers(60);

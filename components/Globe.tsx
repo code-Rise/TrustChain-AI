@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { useFrame, useLoader, ThreeEvent } from '@react-three/fiber';
+import { useFrame, useLoader, ThreeEvent, useThree } from '@react-three/fiber';
 import { Sphere, Line, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Borrower } from '../types';
@@ -7,6 +7,7 @@ import { Borrower } from '../types';
 interface GlobeProps {
   borrowers: Borrower[];
   onSelectBorrower: (b: Borrower | null) => void;
+  onMapModeChange: (isMapMode: boolean) => void;
 }
 
 const GLOBE_RADIUS = 2.5;
@@ -23,12 +24,8 @@ const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector
 
 // Helper to convert Vector3 on sphere to Lat/Lng
 const vector3ToLatLng = (v: THREE.Vector3, radius: number) => {
-  // Normalize vector just in case
   const n = v.clone().normalize();
   const lat = 90 - (Math.acos(n.y) * 180) / Math.PI;
-  // theta = atan2(z, -x) because x = -sin(theta) and z = sin(theta) roughly in our forward transform
-  // Our forward: x = -R sin(phi) cos(theta), z = R sin(phi) sin(theta)
-  // z / -x = tan(theta)
   const lng = ((Math.atan2(n.z, -n.x) * 180) / Math.PI);
   return { lat, lng };
 };
@@ -47,11 +44,19 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
     return inside;
 };
 
-export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => {
+export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMapModeChange }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [geoJson, setGeoJson] = useState<any>(null);
   const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
+  const [selectedCountryCenter, setSelectedCountryCenter] = useState<THREE.Vector3 | null>(null);
+  
+  const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
+  
+  // Notify parent component about map mode status
+  useEffect(() => {
+    onMapModeChange(!!selectedCountryName);
+  }, [selectedCountryName, onMapModeChange]);
 
   // Load Earth Texture (Blue Marble / Satellite View)
   const earthMap = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
@@ -64,10 +69,31 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
       .catch(err => console.error("Failed to load country data", err));
   }, []);
 
+  // Animation Loop
   useFrame((state, delta) => {
+    // Idle Rotation
     if (groupRef.current && !selectedCountryName) {
-       // Only rotate if no country is selected to allow easier inspection
        groupRef.current.rotation.y += delta * 0.05;
+    }
+
+    // Zoom & Focus Logic
+    if (selectedCountryName && selectedCountryCenter && controls) {
+      // 1. Calculate ideal camera position: Directly above the center point
+      const direction = selectedCountryCenter.clone().normalize();
+      
+      // Zoom closer: Radius (2.5) + Height (0.8) = 3.3. Standard view is usually 6-10.
+      const zoomDistance = GLOBE_RADIUS + 0.8; 
+      const targetPos = direction.clone().multiplyScalar(zoomDistance); 
+      
+      // 2. Smoothly move camera
+      camera.position.lerp(targetPos, 0.08);
+
+      // 3. Smoothly move controls target (look at point)
+      const orbitControls = controls as any;
+      if (orbitControls.target) {
+        orbitControls.target.lerp(selectedCountryCenter, 0.08);
+        orbitControls.update();
+      }
     }
   });
 
@@ -85,7 +111,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
   const countryBorders = useMemo(() => {
     if (!geoJson) return [];
     
-    const borders: { name: string, points: THREE.Vector3[][] }[] = [];
+    const borders: { name: string, points: THREE.Vector3[][], rawPoints: THREE.Vector3[] }[] = [];
 
     geoJson.features.forEach((feature: any) => {
         const name = feature.properties.name || feature.properties.NAME;
@@ -98,16 +124,18 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
         };
 
         if (geometry.type === 'Polygon') {
+             const polyPoints = geometry.coordinates.map(processPolygon);
              borders.push({
                  name,
-                 points: geometry.coordinates.map(processPolygon)
+                 points: polyPoints,
+                 rawPoints: polyPoints.flat()
              });
         } else if (geometry.type === 'MultiPolygon') {
-             geometry.coordinates.forEach((polygon: any) => {
-                 borders.push({
-                     name,
-                     points: polygon.map(processPolygon)
-                 });
+             const multiPoints = geometry.coordinates.map((polygon: any) => polygon.map(processPolygon));
+             borders.push({
+                 name,
+                 points: multiPoints.flat(),
+                 rawPoints: multiPoints.flat().flat()
              });
         }
     });
@@ -116,14 +144,11 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
 
   const handleGlobeClick = (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
-      // Calculate Lat/Lng from intersection point
-      const point = e.point; // This is in world space. If the group is rotated, we need local space.
+      const point = e.point; 
       
-      // Convert world point to local point relative to the rotating globe
       const localPoint = groupRef.current!.worldToLocal(point.clone());
       const { lat, lng } = vector3ToLatLng(localPoint, GLOBE_RADIUS);
 
-      // Find country
       let foundCountry = null;
       if (geoJson) {
           for (const feature of geoJson.features) {
@@ -131,7 +156,6 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
               const name = feature.properties.name || feature.properties.NAME;
               
               if (geometry.type === 'Polygon') {
-                   // GeoJSON coords are [lng, lat]
                    if (isPointInPolygon([lng, lat], geometry.coordinates[0])) {
                        foundCountry = name;
                        break;
@@ -149,16 +173,33 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
       }
 
       if (foundCountry) {
-          setSelectedCountryName(foundCountry === selectedCountryName ? null : foundCountry);
-          console.log("Selected Country:", foundCountry);
+          if (foundCountry === selectedCountryName) {
+            // Deselect on second click
+            setSelectedCountryName(null);
+            setSelectedCountryCenter(null);
+          } else {
+            // Select new country
+            setSelectedCountryName(foundCountry);
+            
+            // Calculate center for zoom
+            const countryData = countryBorders.find(c => c.name === foundCountry);
+            if (countryData && countryData.rawPoints.length > 0) {
+               const center = new THREE.Vector3();
+               countryData.rawPoints.forEach(p => center.add(p));
+               center.divideScalar(countryData.rawPoints.length);
+               setSelectedCountryCenter(center);
+            }
+          }
       } else {
+          // Clicked ocean - deselect
           setSelectedCountryName(null);
+          setSelectedCountryCenter(null);
       }
   };
 
   return (
     <group ref={groupRef}>
-      {/* Main Sphere (Earth Map) */}
+      {/* Main Sphere (Earth Map) - Darkened for futuristic look */}
       <Sphere 
         args={[GLOBE_RADIUS, 64, 64]} 
         onClick={handleGlobeClick}
@@ -167,11 +208,11 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
       >
         <meshStandardMaterial
           map={earthMap}
-          color="#ffffff" 
-          roughness={0.6}
-          metalness={0.2}
-          emissive="#020617"
-          emissiveIntensity={0.2}
+          color="#475569" // Dark Slate
+          roughness={0.8}
+          metalness={0.1}
+          emissive="#020617" // Very dark blue
+          emissiveIntensity={0.5}
         />
       </Sphere>
 
@@ -180,24 +221,23 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
          const isSelected = country.name === selectedCountryName;
          return (
              <group key={`${country.name}-${i}`}>
-                 {country.points.map((linePoints, j) => (
-                    <Line
-                        key={j}
-                        points={linePoints}
-                        color={isSelected ? "#22d3ee" : "#3b82f6"} // Cyan if selected, Blue otherwise
-                        lineWidth={isSelected ? 2 : 1}
-                        transparent
-                        opacity={isSelected ? 0.8 : 0.15} // More visible if selected
-                    />
-                 ))}
+                 {country.points.map((linePoints, j) => {
+                    return (
+                        <CountryLine 
+                            key={j} 
+                            points={linePoints} 
+                            isSelected={isSelected} 
+                        />
+                    );
+                 })}
              </group>
          )
       })}
       
-      {/* Selected Country Label (Optional) */}
+      {/* Selected Country Label */}
       {selectedCountryName && (
            <Html position={[0, GLOBE_RADIUS + 0.5, 0]} center>
-               <div className="pointer-events-none bg-black/80 text-cyan-400 border border-cyan-500/50 px-3 py-1 rounded text-sm font-tech font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+               <div className="pointer-events-none bg-black/90 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded text-base font-tech font-bold tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-bounce">
                    {selectedCountryName}
                </div>
            </Html>
@@ -206,9 +246,9 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
       {/* Atmosphere Glow */}
        <Sphere args={[GLOBE_RADIUS + 0.2, 32, 32]}>
         <meshBasicMaterial
-          color="#06b6d4" // cyan-500
+          color="#1e293b"
           transparent
-          opacity={0.1}
+          opacity={0.05}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
         />
@@ -234,11 +274,12 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
                      setHoveredId(null);
                 }}
             >
-                <sphereGeometry args={[0.06, 16, 16]} />
+                {/* Increase size if in map mode (selectedCountryName is present) for better visibility */}
+                <sphereGeometry args={[selectedCountryName ? 0.04 : 0.06, 16, 16]} />
                 <meshStandardMaterial
                     color={point.color}
                     emissive={point.color}
-                    emissiveIntensity={hoveredId === point.id ? 3 : 1.5}
+                    emissiveIntensity={hoveredId === point.id ? 4 : 2}
                     toneMapped={false}
                 />
             </mesh>
@@ -266,4 +307,29 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower }) => 
       ))}
     </group>
   );
+};
+
+// Extracted Line component to handle its own animation state
+const CountryLine = ({ points, isSelected }: { points: THREE.Vector3[], isSelected: boolean }) => {
+    const [pulse, setPulse] = useState(0);
+    
+    useFrame((state, delta) => {
+        if (isSelected) {
+            setPulse(prev => prev + delta * 5);
+        }
+    });
+
+    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.1;
+    const width = isSelected ? 4 : 1;
+    const color = isSelected ? "#4ade80" : "#64748b"; // emerald-400 vs slate-500
+
+    return (
+        <Line
+            points={points}
+            color={color}
+            lineWidth={width}
+            transparent
+            opacity={opacity}
+        />
+    );
 };
