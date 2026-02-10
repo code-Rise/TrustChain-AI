@@ -7,7 +7,8 @@ import { Borrower } from '../types';
 interface GlobeProps {
   borrowers: Borrower[];
   onSelectBorrower: (b: Borrower | null) => void;
-  onMapModeChange: (isMapMode: boolean) => void;
+  selectedCountry: string | null;
+  onSelectCountry: (country: string | null) => void;
 }
 
 const GLOBE_RADIUS = 2.5;
@@ -44,20 +45,14 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
     return inside;
 };
 
-export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMapModeChange }) => {
+export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selectedCountry, onSelectCountry }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [geoJson, setGeoJson] = useState<any>(null);
-  const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
   const [selectedCountryCenter, setSelectedCountryCenter] = useState<THREE.Vector3 | null>(null);
   
   const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
   
-  // Notify parent component about map mode status
-  useEffect(() => {
-    onMapModeChange(!!selectedCountryName);
-  }, [selectedCountryName, onMapModeChange]);
-
   // Load Earth Texture (Blue Marble / Satellite View)
   const earthMap = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
 
@@ -68,44 +63,6 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMap
       .then(data => setGeoJson(data))
       .catch(err => console.error("Failed to load country data", err));
   }, []);
-
-  // Animation Loop
-  useFrame((state, delta) => {
-    // Idle Rotation
-    if (groupRef.current && !selectedCountryName) {
-       groupRef.current.rotation.y += delta * 0.05;
-    }
-
-    // Zoom & Focus Logic
-    if (selectedCountryName && selectedCountryCenter && controls) {
-      // 1. Calculate ideal camera position: Directly above the center point
-      const direction = selectedCountryCenter.clone().normalize();
-      
-      // Zoom closer: Radius (2.5) + Height (0.8) = 3.3. Standard view is usually 6-10.
-      const zoomDistance = GLOBE_RADIUS + 0.8; 
-      const targetPos = direction.clone().multiplyScalar(zoomDistance); 
-      
-      // 2. Smoothly move camera
-      camera.position.lerp(targetPos, 0.08);
-
-      // 3. Smoothly move controls target (look at point)
-      const orbitControls = controls as any;
-      if (orbitControls.target) {
-        orbitControls.target.lerp(selectedCountryCenter, 0.08);
-        orbitControls.update();
-      }
-    }
-  });
-
-  const points = useMemo(() => {
-    return borrowers.map((b) => {
-      const pos = latLngToVector3(b.location.lat, b.location.lng, GLOBE_RADIUS);
-      let color = '#34d399'; // emerald-400
-      if (b.riskLevel === 'Medium') color = '#fbbf24'; // amber-400
-      if (b.riskLevel === 'High') color = '#ef4444'; // red-500
-      return { ...b, position: pos, color };
-    });
-  }, [borrowers]);
 
   // Process GeoJSON into 3D Lines
   const countryBorders = useMemo(() => {
@@ -142,6 +99,61 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMap
     return borders;
   }, [geoJson]);
 
+  // React to selectedCountry prop changes
+  useEffect(() => {
+    if (selectedCountry && countryBorders.length > 0) {
+        // Find country case-insensitive
+        const countryData = countryBorders.find(c => c.name.toLowerCase() === selectedCountry.toLowerCase());
+        
+        if (countryData && countryData.rawPoints.length > 0) {
+             const center = new THREE.Vector3();
+             countryData.rawPoints.forEach(p => center.add(p));
+             center.divideScalar(countryData.rawPoints.length);
+             setSelectedCountryCenter(center);
+        }
+    } else {
+        setSelectedCountryCenter(null);
+    }
+  }, [selectedCountry, countryBorders]);
+
+  // Animation Loop
+  useFrame((state, delta) => {
+    // Idle Rotation
+    if (groupRef.current && !selectedCountry) {
+       groupRef.current.rotation.y += delta * 0.05;
+    }
+
+    // Zoom & Focus Logic
+    if (selectedCountry && selectedCountryCenter && controls) {
+      // 1. Calculate ideal camera position: Directly above the center point
+      const direction = selectedCountryCenter.clone().normalize();
+      
+      // Zoom closer: Radius (2.5) + Height (0.8) = 3.3. Standard view is usually 6-10.
+      const zoomDistance = GLOBE_RADIUS + 0.8; 
+      const targetPos = direction.clone().multiplyScalar(zoomDistance); 
+      
+      // 2. Smoothly move camera
+      camera.position.lerp(targetPos, 0.08);
+
+      // 3. Smoothly move controls target (look at point)
+      const orbitControls = controls as any;
+      if (orbitControls.target) {
+        orbitControls.target.lerp(selectedCountryCenter, 0.08);
+        orbitControls.update();
+      }
+    }
+  });
+
+  const points = useMemo(() => {
+    return borrowers.map((b) => {
+      const pos = latLngToVector3(b.location.lat, b.location.lng, GLOBE_RADIUS);
+      let color = '#34d399'; // emerald-400
+      if (b.riskLevel === 'Medium') color = '#fbbf24'; // amber-400
+      if (b.riskLevel === 'High') color = '#ef4444'; // red-500
+      return { ...b, position: pos, color };
+    });
+  }, [borrowers]);
+
   const handleGlobeClick = (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
       const point = e.point; 
@@ -173,27 +185,13 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMap
       }
 
       if (foundCountry) {
-          if (foundCountry === selectedCountryName) {
-            // Deselect on second click
-            setSelectedCountryName(null);
-            setSelectedCountryCenter(null);
+          if (foundCountry === selectedCountry) {
+            onSelectCountry(null); // Deselect
           } else {
-            // Select new country
-            setSelectedCountryName(foundCountry);
-            
-            // Calculate center for zoom
-            const countryData = countryBorders.find(c => c.name === foundCountry);
-            if (countryData && countryData.rawPoints.length > 0) {
-               const center = new THREE.Vector3();
-               countryData.rawPoints.forEach(p => center.add(p));
-               center.divideScalar(countryData.rawPoints.length);
-               setSelectedCountryCenter(center);
-            }
+            onSelectCountry(foundCountry); // Select
           }
       } else {
-          // Clicked ocean - deselect
-          setSelectedCountryName(null);
-          setSelectedCountryCenter(null);
+          onSelectCountry(null); // Deselect if clicked on ocean
       }
   };
 
@@ -218,7 +216,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMap
 
       {/* Country Borders */}
       {countryBorders.map((country, i) => {
-         const isSelected = country.name === selectedCountryName;
+         const isSelected = country.name === selectedCountry;
          return (
              <group key={`${country.name}-${i}`}>
                  {country.points.map((linePoints, j) => {
@@ -235,10 +233,10 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMap
       })}
       
       {/* Selected Country Label */}
-      {selectedCountryName && (
+      {selectedCountry && (
            <Html position={[0, GLOBE_RADIUS + 0.5, 0]} center>
                <div className="pointer-events-none bg-black/90 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded text-base font-tech font-bold tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-bounce">
-                   {selectedCountryName}
+                   {selectedCountry}
                </div>
            </Html>
       )}
@@ -274,8 +272,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, onMap
                      setHoveredId(null);
                 }}
             >
-                {/* Increase size if in map mode (selectedCountryName is present) for better visibility */}
-                <sphereGeometry args={[selectedCountryName ? 0.04 : 0.06, 16, 16]} />
+                {/* Increase size if in map mode (selectedCountry is present) for better visibility */}
+                <sphereGeometry args={[selectedCountry ? 0.04 : 0.06, 16, 16]} />
                 <meshStandardMaterial
                     color={point.color}
                     emissive={point.color}

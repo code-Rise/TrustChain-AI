@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, Suspense, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, Environment } from '@react-three/drei';
 import { Globe } from './components/Globe';
@@ -13,15 +13,32 @@ import {
   AlertTriangle,
   Search,
   Menu,
-  X
+  X,
+  MapPin
 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [borrowers] = useState<Borrower[]>(MOCK_BORROWERS);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isMapMode, setIsMapMode] = useState(false); // Track if a country is selected
+  const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  // Search State
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Derived list of unique countries from the data for search suggestions
+  const availableCountries = useMemo(() => {
+    const countries = new Set(borrowers.map(b => b.location.country));
+    return Array.from(countries).sort();
+  }, [borrowers]);
+
+  const searchResults = useMemo(() => {
+    if (!searchTerm) return [];
+    return availableCountries.filter(c => 
+      c.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, availableCountries]);
 
   useEffect(() => {
     setMounted(true);
@@ -51,7 +68,8 @@ const App: React.FC = () => {
             <Globe 
               borrowers={borrowers} 
               onSelectBorrower={setSelectedBorrower} 
-              onMapModeChange={setIsMapMode}
+              selectedCountry={selectedCountryName}
+              onSelectCountry={setSelectedCountryName}
             />
             
             <OrbitControls 
@@ -60,7 +78,7 @@ const App: React.FC = () => {
               enableZoom={true} 
               minDistance={2.6} // Allow zooming in closer
               maxDistance={12}
-              autoRotate={!selectedBorrower && !isMapMode} // Stop rotation if borrower selected OR map mode active
+              autoRotate={!selectedBorrower && !selectedCountryName} // Stop rotation if borrower selected OR map mode active
               autoRotateSpeed={0.5}
             />
           </Suspense>
@@ -121,19 +139,52 @@ const App: React.FC = () => {
       <aside className={`absolute top-24 left-6 w-80 max-h-[calc(100vh-140px)] flex flex-col gap-4 z-10 transition-transform duration-500 ${showMobileMenu ? 'translate-x-0' : '-translate-x-[120%] md:translate-x-0'}`}>
         
         {/* Search Panel */}
-        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-xl shadow-black/50 pointer-events-auto">
+        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-xl shadow-black/50 pointer-events-auto z-20">
           <div className="relative">
              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
              <input 
               type="text" 
-              placeholder="Search ID or Region..." 
+              placeholder="Search Region..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-950/50 border border-slate-700 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-emerald-500/50 text-slate-200"
              />
+             {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-2.5 text-slate-500 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+             )}
           </div>
+          
+          {/* Search Results Dropdown */}
+          {searchTerm && (
+            <div className="mt-2 bg-slate-950/90 border border-slate-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+               {searchResults.length > 0 ? (
+                 searchResults.map(country => (
+                   <button
+                    key={country}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-emerald-500/20 hover:text-emerald-400 flex items-center gap-2 transition-colors"
+                    onClick={() => {
+                      setSelectedCountryName(country);
+                      setSearchTerm(''); // Clear search logic or keep it? Let's clear it to show we navigated.
+                    }}
+                   >
+                     <MapPin className="w-3 h-3" />
+                     {country}
+                   </button>
+                 ))
+               ) : (
+                 <div className="px-4 py-2 text-xs text-slate-500">No regions found</div>
+               )}
+            </div>
+          )}
         </div>
 
         {/* Risk Distribution Chart Panel */}
-        <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col">
+        <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10">
           <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
             <Globe2 className="w-4 h-4 text-emerald-500" /> Regional Risk Mix
           </h3>
