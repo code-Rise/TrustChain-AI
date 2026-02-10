@@ -282,8 +282,8 @@ const App: React.FC = () => {
         
         <div className="text-right pointer-events-auto">
           <p className="text-[10px] text-slate-600">
-             © 2024 SENTINEL RISK SYSTEMS<br/>
-             POWERED BY GEMINI ANALYTICS ENGINE
+             © 2026 SENTINEL RISK SYSTEMS<br/>
+             POWERED BY ML        
           </p>
         </div>
       </footer>
