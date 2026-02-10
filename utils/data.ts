@@ -24,8 +24,6 @@ export const generateBorrowers = (count: number): Borrower[] => {
   return Array.from({ length: count }).map((_, i) => {
     const cityData = CITIES[i % CITIES.length];
     // Add some random jitter to coords so they don't stack perfectly.
-    // Reduced jitter to 0.5 degrees to keep points closer to the city/country, 
-    // especially important for smaller countries like Rwanda.
     const lat = cityData.lat + (Math.random() - 0.5) * 0.5;
     const lng = cityData.lng + (Math.random() - 0.5) * 0.5;
     
@@ -51,4 +49,4 @@ export const generateBorrowers = (count: number): Borrower[] => {
   });
 };
 
-export const MOCK_BORROWERS = generateBorrowers(40); // Increased count to ensure Rwanda cities are generated
+export const MOCK_BORROWERS = generateBorrowers(50);

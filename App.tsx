@@ -1,6 +1,6 @@
 import React, { useState, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, Environment, Stats } from '@react-three/drei';
+import { OrbitControls, Stars, Environment } from '@react-three/drei';
 import { Globe } from './components/Globe';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
 import { MOCK_BORROWERS } from './utils/data';
