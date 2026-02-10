@@ -48,6 +48,11 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
 export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selectedCountry, onSelectCountry }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  
+  // Country Hover State
+  const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<THREE.Vector3 | null>(null);
+
   const [geoJson, setGeoJson] = useState<any>(null);
   const [selectedCountryCenter, setSelectedCountryCenter] = useState<THREE.Vector3 | null>(null);
   
@@ -154,35 +159,36 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
     });
   }, [borrowers]);
 
-  const handleGlobeClick = (e: ThreeEvent<MouseEvent>) => {
-      e.stopPropagation();
-      const point = e.point; 
+  // Reusable function to find country at a 3D world point
+  const getCountryAtPoint = (point: THREE.Vector3) => {
+      if (!geoJson || !groupRef.current) return null;
       
-      const localPoint = groupRef.current!.worldToLocal(point.clone());
+      // Convert world point to local point (taking into account rotation)
+      const localPoint = groupRef.current.worldToLocal(point.clone());
       const { lat, lng } = vector3ToLatLng(localPoint, GLOBE_RADIUS);
 
-      let foundCountry = null;
-      if (geoJson) {
-          for (const feature of geoJson.features) {
-              const geometry = feature.geometry;
-              const name = feature.properties.name || feature.properties.NAME;
-              
-              if (geometry.type === 'Polygon') {
-                   if (isPointInPolygon([lng, lat], geometry.coordinates[0])) {
-                       foundCountry = name;
-                       break;
+      for (const feature of geoJson.features) {
+          const geometry = feature.geometry;
+          const name = feature.properties.name || feature.properties.NAME;
+          
+          if (geometry.type === 'Polygon') {
+               if (isPointInPolygon([lng, lat], geometry.coordinates[0])) {
+                   return name;
+               }
+          } else if (geometry.type === 'MultiPolygon') {
+               for (const polygon of geometry.coordinates) {
+                   if (isPointInPolygon([lng, lat], polygon[0])) {
+                       return name;
                    }
-              } else if (geometry.type === 'MultiPolygon') {
-                   for (const polygon of geometry.coordinates) {
-                       if (isPointInPolygon([lng, lat], polygon[0])) {
-                           foundCountry = name;
-                           break;
-                       }
-                   }
-                   if (foundCountry) break;
-              }
+               }
           }
       }
+      return null;
+  };
+
+  const handleGlobeClick = (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      const foundCountry = getCountryAtPoint(e.point);
 
       if (foundCountry) {
           if (foundCountry === selectedCountry) {
@@ -195,14 +201,34 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       }
   };
 
+  const handleGlobePointerMove = (e: ThreeEvent<PointerEvent>) => {
+     e.stopPropagation();
+     const foundCountry = getCountryAtPoint(e.point);
+     
+     if (foundCountry) {
+         setHoveredCountry(foundCountry);
+         // Store local point for <Html> positioning inside group
+         const localPoint = groupRef.current!.worldToLocal(e.point.clone());
+         setHoveredPoint(localPoint);
+         document.body.style.cursor = 'pointer';
+     } else {
+         setHoveredCountry(null);
+         setHoveredPoint(null);
+         document.body.style.cursor = 'auto'; // or 'grab'
+     }
+  };
+
   return (
     <group ref={groupRef}>
       {/* Main Sphere (Earth Map) - Darkened for futuristic look */}
       <Sphere 
         args={[GLOBE_RADIUS, 64, 64]} 
         onClick={handleGlobeClick}
-        onPointerOver={() => document.body.style.cursor = 'crosshair'}
-        onPointerOut={() => document.body.style.cursor = 'auto'}
+        onPointerMove={handleGlobePointerMove}
+        onPointerOut={() => {
+            document.body.style.cursor = 'auto';
+            setHoveredCountry(null);
+        }}
       >
         <meshStandardMaterial
           map={earthMap}
@@ -233,12 +259,21 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       })}
       
       {/* Selected Country Label */}
-      {selectedCountry && (
-           <Html position={[0, GLOBE_RADIUS + 0.5, 0]} center>
-               <div className="pointer-events-none bg-black/90 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded text-base font-tech font-bold tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-bounce">
+      {selectedCountry && selectedCountryCenter && (
+           <Html position={selectedCountryCenter.clone().multiplyScalar(1.05)} center zIndexRange={[100, 0]}>
+               <div className="pointer-events-none bg-black/90 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded text-base font-tech font-bold tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-bounce whitespace-nowrap">
                    {selectedCountry}
                </div>
            </Html>
+      )}
+
+      {/* Hovered Country Tooltip (Only show if different from selected or no selected) */}
+      {hoveredCountry && hoveredPoint && hoveredCountry !== selectedCountry && (
+          <Html position={hoveredPoint.clone().multiplyScalar(1.05)} center pointerEvents="none" zIndexRange={[100, 0]}>
+              <div className="bg-slate-900/80 backdrop-blur-sm text-slate-200 border border-slate-600/50 px-3 py-1 rounded text-xs font-tech font-bold tracking-wider uppercase shadow-lg whitespace-nowrap transform -translate-y-6">
+                  {hoveredCountry}
+              </div>
+          </Html>
       )}
 
       {/* Atmosphere Glow */}
@@ -293,7 +328,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
 
             {/* Hover Tooltip in 3D space */}
             {hoveredId === point.id && (
-                <Html distanceFactor={10}>
+                <Html distanceFactor={10} zIndexRange={[200, 0]}>
                     <div className="bg-slate-900/90 backdrop-blur-md border border-emerald-500/50 p-2 rounded text-xs text-white whitespace-nowrap pointer-events-none transform -translate-y-8 shadow-lg shadow-black/50 z-50">
                         <div className="font-bold text-emerald-400 font-tech uppercase tracking-wider">{point.name}</div>
                         <div className="text-slate-300">{point.location.city}, {point.location.country}</div>
