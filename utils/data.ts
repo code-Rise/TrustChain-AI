@@ -32,7 +32,7 @@ export const generateBorrowers = (count: number): Borrower[] => {
     const jitter = cityData.country === 'Rwanda' ? 0.15 : 0.5;
     const lat = cityData.lat + (Math.random() - 0.5) * jitter;
     const lng = cityData.lng + (Math.random() - 0.5) * jitter;
-    
+
     const creditScore = Math.floor(Math.random() * (850 - 300) + 300);
     let riskLevel: 'Low' | 'Medium' | 'High' = 'Medium';
     if (creditScore > 700) riskLevel = 'Low';
@@ -51,6 +51,8 @@ export const generateBorrowers = (count: number): Borrower[] => {
       spendingTrend: Array.from({ length: 6 }).map(() => Math.floor(Math.random() * 5000) + 1000),
       repaymentHistory: Math.floor(Math.random() * 20) + 80, // 80-100%
       mobileMoneyUsage: Math.floor(Math.random() * 1000),
+      approved: false,
+      maxLimit: Math.floor(creditScore * 10), // Simple logic for limit
     };
   });
 };
