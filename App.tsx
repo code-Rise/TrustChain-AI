@@ -70,7 +70,7 @@ const App: React.FC = () => {
       
       {/* 3D Scene Background */}
       <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
+        <Canvas camera={{ position: [0, 0, 6], fov: 45, near: 0.01 }}>
           <Suspense fallback={null}>
             <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} intensity={1.5} color="#4ade80" />
@@ -91,7 +91,7 @@ const App: React.FC = () => {
               makeDefault
               enablePan={false} 
               enableZoom={true} 
-              minDistance={2.55} // Allow zooming in closer for small countries
+              minDistance={2.51} // Allow zooming in extremely close for small countries
               maxDistance={12}
               autoRotate={!selectedBorrower && !selectedCountryName} // Stop rotation if borrower selected OR map mode active
               autoRotateSpeed={0.5}

@@ -86,7 +86,6 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
   const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
   
   // Load Earth Texture (Blue Marble / Satellite View)
-  // Switched to a reliable github raw content URL to avoid unpkg CORS/availability issues
   const earthMap = useLoader(THREE.TextureLoader, 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
 
   // Process GeoJSON into 3D Lines
@@ -159,9 +158,9 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
                  });
                  
                  // Heuristic: scale zoom based on country size.
-                 // Small countries (Rwanda) -> small maxDist -> close zoom (small offset).
-                 // Minimum offset of 0.35 ensures we don't clip into the surface.
-                 newZoom = Math.max(0.35, maxDist * 2.2);
+                 // Small countries (like Rwanda) have very small maxDist.
+                 // We allow zooming in very close (0.08 units from surface).
+                 newZoom = Math.max(0.08, maxDist * 2.5);
             }
         }
 
@@ -188,7 +187,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
                  });
                  
                  // Tighter zoom for point clusters
-                 newZoom = Math.max(0.3, maxDist * 2.5);
+                 newZoom = Math.max(0.1, maxDist * 2.5);
             }
         }
 
@@ -238,7 +237,6 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       }
 
       // Smoothly interpolate
-      // Using a slightly faster lerp for responsiveness
       camera.position.lerp(targetPos, 0.08);
       orbitControls.target.lerp(targetLookAt, 0.08);
       orbitControls.update();
