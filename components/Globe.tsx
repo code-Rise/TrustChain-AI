@@ -47,9 +47,11 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
 };
 
 // Native Line component to avoid shader errors with Line2/LineMaterial
+// Using primitive to avoid TypeScript confusion with SVG <line>
 const CountryLine: React.FC<{ points: THREE.Vector3[], isSelected: boolean }> = ({ points, isSelected }) => {
     const geometry = useMemo(() => new THREE.BufferGeometry().setFromPoints(points), [points]);
     const [pulse, setPulse] = useState(0);
+    const line = useMemo(() => new THREE.Line(), []);
     
     useFrame((state, delta) => {
         if (isSelected) {
@@ -63,14 +65,14 @@ const CountryLine: React.FC<{ points: THREE.Vector3[], isSelected: boolean }> = 
     const color = isSelected ? "#4ade80" : "#475569"; 
 
     return (
-        <line geometry={geometry}>
+        <primitive object={line} geometry={geometry}>
             <lineBasicMaterial 
                 color={color}
                 transparent
                 opacity={opacity}
                 linewidth={1} 
             />
-        </line>
+        </primitive>
     );
 };
 
