@@ -76,6 +76,41 @@ const App: React.FC = () => {
     return borrowers.filter(b => b.location.country === selectedCountryName);
   }, [selectedCountryName, borrowers]);
 
+  // REGIONAL STATS (Left Panel when no country selected)
+  const countryStats = useMemo(() => {
+    const stats = new Map<string, { count: number, highRisk: number, avgScore: number, totalScore: number }>();
+
+    borrowers.forEach(b => {
+      if (!stats.has(b.location.country)) {
+        stats.set(b.location.country, { count: 0, highRisk: 0, avgScore: 0, totalScore: 0 });
+      }
+      const s = stats.get(b.location.country)!;
+      s.count++;
+      s.totalScore += b.creditScore;
+      if (b.riskLevel === 'High') s.highRisk++;
+    });
+
+    return Array.from(stats.entries()).map(([country, data]) => ({
+      country,
+      count: data.count,
+      highRisk: data.highRisk,
+      avgScore: Math.floor(data.totalScore / data.count)
+    })).sort((a, b) => b.highRisk - a.highRisk); // Sort by risk
+  }, [borrowers]);
+
+  // GLOBAL STATS (Right Panel when no borrower selected)
+  const globalStats = useMemo(() => {
+    const highestLimit = [...borrowers].sort((a, b) => (b.maxLimit || 0) - (a.maxLimit || 0))[0];
+    const highestRisk = [...borrowers].sort((a, b) => a.creditScore - b.creditScore)[0]; // Lowest score
+
+    const topRisky = borrowers
+      .filter(b => b.riskLevel === 'High')
+      .sort((a, b) => a.creditScore - b.creditScore)
+      .slice(0, 5);
+
+    return { highestLimit, highestRisk, topRisky };
+  }, [borrowers]);
+
   useEffect(() => {
     setMounted(true);
 
@@ -336,29 +371,88 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10">
+          <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10 overflow-hidden">
             <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
               <Globe2 className="w-4 h-4 text-emerald-500" /> Regional Risk Mix
             </h3>
-            <div className="flex-1 w-full -ml-2">
+            <div className="flex-1 w-full -ml-2 min-h-[180px]">
               <CreditMixChart data={borrowers} />
             </div>
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Algorithm v2.4 Active</span>
-                <span className="text-emerald-500 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Live
-                </span>
+
+            <div className="mt-4 pt-4 border-t border-slate-800 flex-1 overflow-y-auto custom-scrollbar">
+              <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">High Risk Regions</h4>
+              <div className="space-y-2">
+                {countryStats.map(stat => (
+                  <div key={stat.country} className="flex items-center justify-between p-2 rounded bg-slate-950/30 border border-slate-800/50 hover:bg-slate-800/50 cursor-pointer transition-colors" onClick={() => setSelectedCountryName(stat.country)}>
+                    <div className="flex items-center gap-2">
+                      {stat.highRisk > 0 && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>}
+                      <span className="text-xs text-slate-300 font-bold">{stat.country}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${stat.avgScore < 600 ? 'text-red-400 bg-red-500/10' : 'text-emerald-400 bg-emerald-500/10'}`}>
+                        {stat.avgScore}
+                      </span>
+                      <span className="text-[10px] text-slate-500 w-8 text-right">{stat.count} Ent.</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         )}
       </aside>
 
-      {/* Right Panel - Borrower Detail (Shows when selected) */}
-      <aside className={`absolute top-24 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 ${selectedBorrower ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0'}`}>
-        {selectedBorrower && (
+      {/* Right Panel - Borrower Detail OR Global Report */}
+      <aside className={`absolute top-24 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
+        {!selectedBorrower ? (
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
+            <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" /> Global Risk Report
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                <div className="font-mono text-emerald-400 font-bold text-lg">
+                  ${globalStats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                </div>
+                <div className="text-[10px] text-slate-400 truncate">{globalStats.highestLimit?.name}</div>
+              </div>
+              <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                <div className="font-mono text-red-400 font-bold text-lg">
+                  {globalStats.highestRisk?.creditScore}
+                </div>
+                <div className="text-[10px] text-slate-400 truncate">{globalStats.highestRisk?.name}</div>
+              </div>
+            </div>
+
+            <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">Top Critical Entities</h4>
+            <div className="space-y-2">
+              {globalStats.topRisky.map(b => (
+                <div
+                  key={b.id}
+                  onClick={() => {
+                    if (b.location.country !== selectedCountryName) {
+                      setSelectedCountryName(b.location.country);
+                    }
+                    setSelectedBorrower(b);
+                  }}
+                  className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
+                    <span className="text-[10px] text-slate-500">{b.location.country} • {b.location.city}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
+                    <div className="text-[10px] text-slate-600">SCORE</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
           <div className="bg-slate-900/90 backdrop-blur-xl border border-emerald-500/30 rounded-xl overflow-hidden shadow-2xl shadow-emerald-900/20 pointer-events-auto">
 
             {/* Header with Close */}
