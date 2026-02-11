@@ -216,7 +216,7 @@ const App: React.FC = () => {
 
       {/* Return to Orbit Button */}
       {selectedCountryName && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20">
           <button
             onClick={() => setSelectedCountryName(null)}
             className="flex items-center gap-2 px-6 py-2 bg-slate-950/50 hover:bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-full text-emerald-400 text-xs font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] group"
