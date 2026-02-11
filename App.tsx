@@ -15,7 +15,10 @@ import {
   ArrowLeft,
   FileText,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  X,
+  Menu,
+  Search
 } from 'lucide-react';
 import { Modal } from './components/Modal';
 import { Toast, ToastType } from './components/Toast';
@@ -24,9 +27,6 @@ const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [borrowers] = useState<Borrower[]>(MOCK_BORROWERS);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
-  const [geoJson, setGeoJson] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
   const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
   const [geoJson, setGeoJson] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
@@ -302,14 +302,14 @@ const App: React.FC = () => {
                   key={borrower.id}
                   onClick={() => setSelectedBorrower(borrower)}
                   className={`p-3 rounded-lg border cursor-pointer transition-all hover:bg-slate-800 ${selectedBorrower?.id === borrower.id
-                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-                      : 'bg-slate-950/30 border-slate-800 hover:border-slate-600'
+                    ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                    : 'bg-slate-950/30 border-slate-800 hover:border-slate-600'
                     }`}
                 >
                   <div className="flex justify-between items-center mb-1">
                     <div className="text-sm font-bold text-slate-200">{borrower.name}</div>
                     <div className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${borrower.riskLevel === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
-                        borrower.riskLevel === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                      borrower.riskLevel === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
                       }`}>
                       {borrower.creditScore}
                     </div>
@@ -370,12 +370,12 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center justify-center p-4 bg-slate-950/50 rounded-lg border border-slate-800">
                 <span className="text-xs text-slate-500 uppercase tracking-widest mb-1">Risk Score</span>
                 <span className={`font-tech text-4xl font-bold ${selectedBorrower.riskLevel === 'Low' ? 'text-emerald-400' :
-                    selectedBorrower.riskLevel === 'Medium' ? 'text-amber-400' : 'text-red-500'
+                  selectedBorrower.riskLevel === 'Medium' ? 'text-amber-400' : 'text-red-500'
                   }`}>
                   {selectedBorrower.creditScore}
                 </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full mt-2 border ${selectedBorrower.riskLevel === 'Low' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' :
-                    selectedBorrower.riskLevel === 'Medium' ? 'border-amber-500/30 text-amber-400 bg-amber-500/10' : 'border-red-500/30 text-red-400 bg-red-500/10'
+                  selectedBorrower.riskLevel === 'Medium' ? 'border-amber-500/30 text-amber-400 bg-amber-500/10' : 'border-red-500/30 text-red-400 bg-red-500/10'
                   }`}>
                   {selectedBorrower.riskLevel.toUpperCase()}
                 </span>
@@ -395,16 +395,139 @@ const App: React.FC = () => {
 
             {/* Footer Actions */}
             <div className="p-4 bg-slate-950/50 border-t border-slate-800 grid grid-cols-2 gap-3">
-              <button className="py-2 px-3 rounded text-xs font-bold uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700">
-                Full Report
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="py-2 px-3 rounded text-xs font-bold uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700 flex items-center justify-center gap-2"
+              >
+                <FileText className="w-3 h-3" /> Full Report
               </button>
-              <button className="py-2 px-3 rounded text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 transition-all">
-                Approve Limit
+              <button
+                onClick={handleApproveLimit}
+                disabled={selectedBorrower.approved}
+                className={`py-2 px-3 rounded text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all flex items-center justify-center gap-2 ${selectedBorrower.approved
+                    ? 'bg-emerald-500/50 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                  }`}
+              >
+                {selectedBorrower.approved ? (
+                  <>
+                    <CheckCircle className="w-3 h-3" /> Approved
+                  </>
+                ) : (
+                  'Approve Limit'
+                )}
               </button>
             </div>
           </div>
         )}
       </aside>
+
+      {/* MODAL: Full Report */}
+      <Modal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        title="Comprehensive Risk Report"
+      >
+        {selectedBorrower && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+              <div className={`p-3 rounded-full ${selectedBorrower.riskLevel === 'Low' ? 'bg-emerald-500/20 text-emerald-400' :
+                  selectedBorrower.riskLevel === 'Medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-500'
+                }`}>
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-white">Risk Analysis Complete</h4>
+                <p className="text-sm text-slate-400">Generated on {new Date().toLocaleDateString()}</p>
+              </div>
+              <div className="ml-auto text-right">
+                <div className="text-2xl font-mono font-bold text-white">{selectedBorrower.creditScore}</div>
+                <div className="text-xs uppercase tracking-wider text-slate-500">Credit Score</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-950/30 rounded-lg border border-slate-800">
+                <h5 className="text-xs uppercase tracking-widest text-slate-500 mb-3">Financial Behavior</h5>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  <li className="flex justify-between">
+                    <span>Repayment History</span>
+                    <span className="font-mono text-emerald-400">{selectedBorrower.repaymentHistory}%</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span>Mobile Money Usage</span>
+                    <span className="font-mono text-slate-200">${selectedBorrower.mobileMoneyUsage}/mo</span>
+                  </li>
+                  <li className="flex justify-between border-t border-slate-800 pt-2 mt-2">
+                    <span>Recommended Limit</span>
+                    <span className="font-mono text-emerald-400 font-bold">${selectedBorrower.maxLimit?.toLocaleString()}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-4 bg-slate-950/30 rounded-lg border border-slate-800">
+                <h5 className="text-xs uppercase tracking-widest text-slate-500 mb-3">Risk Factors</h5>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span>Consistent repayment pattern over last 6 months.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span>No default history in cross-border transactions.</span>
+                  </li>
+                  {selectedBorrower.riskLevel === 'High' && (
+                    <li className="flex items-start gap-2 text-red-300">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                      <span>High volatility in recent transaction volume.</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-950/30 rounded-lg border border-slate-800">
+              <h5 className="text-xs uppercase tracking-widest text-slate-500 mb-3">AI Recommendation</h5>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Based on the aggregated data from multiple regional bureaus and mobile money statements,
+                the algorithm suggests <strong className="text-white">APPROVAL</strong> for a credit limit up to
+                <span className="text-emerald-400"> ${selectedBorrower.maxLimit?.toLocaleString()}</span>.
+                The entity shows strong repayment discipline despite regional economic fluctuations.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  handleApproveLimit();
+                  setShowReportModal(false);
+                }}
+                disabled={selectedBorrower.approved}
+                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {selectedBorrower.approved ? 'Limit Approved' : 'Approve & Close'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Toast Notifications container */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none *:pointer-events-auto">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            {...toast}
+            onClose={removeToast}
+          />
+        ))}
+      </div>
 
       {/* Footer / System Status */}
       <footer className="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">
