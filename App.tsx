@@ -1,6 +1,6 @@
 import React, { useState, Suspense, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, Environment } from '@react-three/drei';
+import { OrbitControls, Stars } from '@react-three/drei';
 import { Globe } from './components/Globe';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
 import { CountryMap } from './components/CountryMap';
@@ -45,17 +45,30 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
-    // Fetch higher resolution GeoJSON (50m) for better detail on small countries like Rwanda
-    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson')
-      .then(res => res.json())
-      .then(data => setGeoJson(data))
-      .catch(err => {
-        console.error("Failed to load high-res country data, falling back to low-res", err);
-        // Fallback if the raw github link fails
-        fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson')
-          .then(res => res.json())
-          .then(data => setGeoJson(data));
-      });
+
+    const geoJsonUrls = [
+      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',
+      'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson',
+      'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
+    ];
+
+    const loadGeoJson = async (index = 0) => {
+      if (index >= geoJsonUrls.length) {
+         console.warn("All GeoJSON sources failed to load. Map borders will not be visible.");
+         return;
+      }
+      try {
+        const res = await fetch(geoJsonUrls[index]);
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        setGeoJson(data);
+      } catch (err) {
+        console.warn(`Failed to load GeoJSON from source ${index + 1}, trying next...`);
+        loadGeoJson(index + 1);
+      }
+    };
+
+    loadGeoJson();
   }, []);
 
   if (!mounted) return null;
@@ -72,12 +85,14 @@ const App: React.FC = () => {
       <div className="absolute inset-0 z-0">
         <Canvas camera={{ position: [0, 0, 6], fov: 45, near: 0.01 }}>
           <Suspense fallback={null}>
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10, 10, 10]} intensity={1.5} color="#4ade80" />
-            <pointLight position={[-10, -10, -5]} intensity={1} color="#3b82f6" />
+            {/* Lighting Setup (Replaces Environment preset to avoid fetch errors) */}
+            <ambientLight intensity={0.4} />
+            <hemisphereLight args={['#ffffff', '#000000', 0.8]} />
+            <directionalLight position={[10, 10, 5]} intensity={1.5} color="#4ade80" />
+            <directionalLight position={[-10, -5, -5]} intensity={1} color="#3b82f6" />
+            <pointLight position={[0, 5, 0]} intensity={0.5} color="#ffffff" />
             
             <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-            <Environment preset="city" />
             
             <Globe 
               borrowers={borrowers} 
@@ -91,7 +106,10 @@ const App: React.FC = () => {
               makeDefault
               enablePan={false} 
               enableZoom={true} 
-              minDistance={2.51} // Allow zooming in extremely close for small countries
+              // When a country is selected, the target moves to the surface.
+              // We must allow the camera to get very close to that target (e.g. 0.05 units).
+              // When no country is selected, target is (0,0,0), so minDistance must be > Radius (2.5) to avoid clipping.
+              minDistance={selectedCountryName ? 0.05 : 2.55}
               maxDistance={12}
               autoRotate={!selectedBorrower && !selectedCountryName} // Stop rotation if borrower selected OR map mode active
               autoRotateSpeed={0.5}

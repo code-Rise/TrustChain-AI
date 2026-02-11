@@ -56,8 +56,8 @@ const CountryLine: React.FC<{ points: THREE.Vector3[], isSelected: boolean }> = 
         }
     });
 
-    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.1;
-    const width = isSelected ? 4 : 1;
+    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.15;
+    const width = isSelected ? 6 : 1; // Thicker line for selected
     const color = isSelected ? "#4ade80" : "#64748b"; // emerald-400 vs slate-500
 
     return (
@@ -159,8 +159,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
                  
                  // Heuristic: scale zoom based on country size.
                  // Small countries (like Rwanda) have very small maxDist.
-                 // We allow zooming in very close (0.08 units from surface).
-                 newZoom = Math.max(0.08, maxDist * 2.5);
+                 // We allow zooming in very close (0.05 units from surface).
+                 newZoom = Math.max(0.05, maxDist * 1.5);
             }
         }
 
@@ -187,7 +187,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
                  });
                  
                  // Tighter zoom for point clusters
-                 newZoom = Math.max(0.1, maxDist * 2.5);
+                 newZoom = Math.max(0.05, maxDist * 2.0);
             }
         }
 
@@ -215,7 +215,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       const orbitControls = controls as any;
       let targetPos: THREE.Vector3;
       let targetLookAt: THREE.Vector3;
-      const stopDistanceThreshold = 0.05;
+      const stopDistanceThreshold = 0.02; // Stricter threshold for smoother finish
 
       if (selectedCountry && selectedCountryCenter) {
           // 1. Calculate ideal camera position: Directly above the center point
