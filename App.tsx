@@ -157,11 +157,11 @@ const App: React.FC = () => {
       <header className="absolute top-0 left-0 w-full z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg backdrop-blur-sm">
-            <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            <Globe2 className="w-6 h-6 text-emerald-400" />
           </div>
           <div>
-            <h1 className="font-tech text-2xl font-bold tracking-wider text-white">SENTINEL<span className="text-emerald-400">RISK</span></h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em]">Global Credit Monitoring System</p>
+            <h1 className="font-tech text-2xl font-bold tracking-wider text-white">TRUSTCHAIN<span className="text-emerald-400"> AI</span></h1>
+            <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em]">Decentralized Credit Intelligence</p>
           </div>
         </div>
 
@@ -556,7 +556,7 @@ const App: React.FC = () => {
 
         <div className="text-right pointer-events-auto">
           <p className="text-[10px] text-slate-600">
-            © 2026 SENTINEL RISK SYSTEMS<br />
+            © 2026 TRUSTCHAIN AI<br />
             POWERED BY CodeRise
           </p>
         </div>
