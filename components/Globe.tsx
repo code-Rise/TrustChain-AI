@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame, useLoader, ThreeEvent, useThree } from '@react-three/fiber';
-import { Sphere, Line, Html } from '@react-three/drei';
+import { Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Borrower } from '../types';
 
@@ -46,8 +46,9 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
     return inside;
 };
 
-// Extracted Line component to handle its own animation state
+// Native Line component to avoid shader errors with Line2/LineMaterial
 const CountryLine: React.FC<{ points: THREE.Vector3[], isSelected: boolean }> = ({ points, isSelected }) => {
+    const geometry = useMemo(() => new THREE.BufferGeometry().setFromPoints(points), [points]);
     const [pulse, setPulse] = useState(0);
     
     useFrame((state, delta) => {
@@ -56,18 +57,20 @@ const CountryLine: React.FC<{ points: THREE.Vector3[], isSelected: boolean }> = 
         }
     });
 
-    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.15;
-    const width = isSelected ? 6 : 1; // Thicker line for selected
-    const color = isSelected ? "#4ade80" : "#64748b"; // emerald-400 vs slate-500
+    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.2;
+    // Note: lineBasicMaterial 'linewidth' only works on some environments (not Chrome/Windows). 
+    // We rely on color brightness/opacity for distinction.
+    const color = isSelected ? "#4ade80" : "#475569"; 
 
     return (
-        <Line
-            points={points}
-            color={color}
-            lineWidth={width}
-            transparent
-            opacity={opacity}
-        />
+        <line geometry={geometry}>
+            <lineBasicMaterial 
+                color={color}
+                transparent
+                opacity={opacity}
+                linewidth={1} 
+            />
+        </line>
     );
 };
 
@@ -80,7 +83,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
   const [hoveredPoint, setHoveredPoint] = useState<THREE.Vector3 | null>(null);
 
   const [selectedCountryCenter, setSelectedCountryCenter] = useState<THREE.Vector3 | null>(null);
-  const [zoomOffset, setZoomOffset] = useState<number>(1.0); // Dynamic zoom level
+  const [zoomOffset, setZoomOffset] = useState<number>(1.0); // Dynamic zoom level (distance from surface)
   const [isAnimating, setIsAnimating] = useState(false);
   
   const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
@@ -158,9 +161,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
                  });
                  
                  // Heuristic: scale zoom based on country size.
-                 // Small countries (like Rwanda) have very small maxDist.
-                 // We allow zooming in very close (0.05 units from surface).
-                 newZoom = Math.max(0.05, maxDist * 1.5);
+                 // We want to be at least 0.1 units away (2.6 total)
+                 newZoom = Math.max(0.1, maxDist * 1.5);
             }
         }
 
@@ -186,8 +188,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
                      if (d > maxDist) maxDist = d;
                  });
                  
-                 // Tighter zoom for point clusters
-                 newZoom = Math.max(0.05, maxDist * 2.0);
+                 newZoom = Math.max(0.1, maxDist * 2.0);
             }
         }
 
@@ -198,7 +199,6 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
         }
     } else {
         setSelectedCountryCenter(null);
-        // Reset isn't strictly necessary as logic handles null, but good for cleanup
         setIsAnimating(true);
     }
   }, [selectedCountry, countryBorders, borrowers]);
@@ -214,21 +214,21 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
     if (isAnimating && controls) {
       const orbitControls = controls as any;
       let targetPos: THREE.Vector3;
-      let targetLookAt: THREE.Vector3;
-      const stopDistanceThreshold = 0.02; // Stricter threshold for smoother finish
+      // CRITICAL: Always look at (0,0,0) to ensure rotation orbits the globe center.
+      // If we move target to surface, rotation causes clipping/penetration.
+      const targetLookAt = new THREE.Vector3(0, 0, 0);
+      const stopDistanceThreshold = 0.02;
 
       if (selectedCountry && selectedCountryCenter) {
-          // 1. Calculate ideal camera position: Directly above the center point
+          // Calculate camera position along the vector from center to country
           const direction = selectedCountryCenter.clone().normalize();
           
-          // Apply calculated zoom offset
-          const zoomDistance = GLOBE_RADIUS + zoomOffset; 
+          // Distance from center = Radius + calculated zoom
+          // Minimum distance enforced in App.tsx is 2.6
+          const zoomDistance = Math.max(2.6, GLOBE_RADIUS + zoomOffset); 
           targetPos = direction.clone().multiplyScalar(zoomDistance); 
-          targetLookAt = selectedCountryCenter;
       } else {
           // Reset to global view
-          targetLookAt = new THREE.Vector3(0, 0, 0);
-          // If camera is too close, pull it back to a default distance
           if (camera.position.length() < 6) {
              targetPos = camera.position.clone().normalize().multiplyScalar(6);
           } else {
@@ -294,7 +294,6 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
           if (foundCountry === selectedCountry) {
             onSelectCountry(null); // Deselect
           } else {
-            // Pass the found country. The logic in useEffect will handle center calculation.
             onSelectCountry(foundCountry); 
           }
       } else {
@@ -426,13 +425,10 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
             </mesh>
             
             {/* Height Line (visualizing value/volume) */}
-            <Line
-                points={[[0,0,0], [0, 0.2 + (point.mobileMoneyUsage / 2000), 0]]} 
-                color={point.color}
-                lineWidth={1}
-                transparent
-                opacity={0.6}
-            />
+            <line>
+                <bufferGeometry attach="geometry" {...new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0, 0.2 + (point.mobileMoneyUsage / 2000), 0)])} />
+                <lineBasicMaterial attach="material" color={point.color} transparent opacity={0.6} />
+            </line>
 
             {/* Hover Tooltip in 3D space */}
             {hoveredId === point.id && (

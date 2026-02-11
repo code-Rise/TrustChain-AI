@@ -106,10 +106,8 @@ const App: React.FC = () => {
               makeDefault
               enablePan={false} 
               enableZoom={true} 
-              // When a country is selected, the target moves to the surface.
-              // We must allow the camera to get very close to that target (e.g. 0.05 units).
-              // When no country is selected, target is (0,0,0), so minDistance must be > Radius (2.5) to avoid clipping.
-              minDistance={selectedCountryName ? 0.05 : 2.55}
+              // Enforce strictly > 2.5 (Globe Radius) to prevents clipping/penetration
+              minDistance={2.6} 
               maxDistance={12}
               autoRotate={!selectedBorrower && !selectedCountryName} // Stop rotation if borrower selected OR map mode active
               autoRotateSpeed={0.5}
