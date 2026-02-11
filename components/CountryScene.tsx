@@ -91,16 +91,18 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
     };
     traverseCoords(feature.geometry.coordinates, feature.geometry.type);
 
-    // Determine scale to fit in view (approx width of 14 units)
+    // Determine scale to fit in view (approx width of 16 units)
     const lngSpan = maxLng - minLng;
     const latSpan = maxLat - minLat;
     const safeLngSpan = lngSpan > 0 ? lngSpan : 1;
     const safeLatSpan = latSpan > 0 ? latSpan : 1;
-    const scale = 14 / Math.max(safeLngSpan, safeLatSpan);
+    const scale = 16 / Math.max(safeLngSpan, safeLatSpan);
 
     const createShapeFromRing = (ring: any[]) => {
         const shape = new THREE.Shape();
         if (ring.length < 3) return shape;
+        // Flip Y (lat) because in 3D Y is up, but map coordinates usually map lat to Y.
+        // We do simple mapping: x = (lng - minLng)*scale, y = (lat - minLat)*scale
         const startX = (ring[0][0] - minLng) * scale;
         const startY = (ring[0][1] - minLat) * scale;
         shape.moveTo(startX, startY);
@@ -153,9 +155,10 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
           orbit.target.set(0, 0, 0);
           orbit.update();
       }
-      camera.position.set(0, -5, 12);
+      // Position camera to look straight at the map center
+      camera.position.set(0, 0, 18);
       camera.lookAt(0, 0, 0);
-  }, [countryName, camera, controls, shapes.length]);
+  }, [countryName, camera, controls]);
 
   const points = useMemo(() => {
       return borrowers.map(b => {
@@ -179,19 +182,22 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
   }
 
   return (
-    <Center>
-        <group ref={meshRef} rotation={[-0.1, 0, 0]}> 
-            <Grid 
-                position={[0, 0, -0.5]} 
-                args={[40, 40]} 
-                cellColor="#1e293b" 
-                sectionColor="#334155" 
-                fadeDistance={30} 
-                fadeStrength={1}
-                infiniteGrid
-            />
-            
-            <Float speed={1.5} rotationIntensity={0.05} floatIntensity={0.1}>
+    <group>
+        {/* Background Grid - Independent of Map Transforms */}
+        <Grid 
+            position={[0, 0, -2]} 
+            args={[50, 50]} 
+            cellColor="#1e293b" 
+            sectionColor="#334155" 
+            fadeDistance={40} 
+            fadeStrength={1}
+            infiniteGrid
+        />
+        
+        {/* Map Container */}
+        <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.2}>
+            {/* Apply a slight tilt for 3D effect */}
+            <group ref={meshRef} rotation={[-0.2, 0, 0]}> 
                 <group>
                     {shapes.map((shape, i) => (
                         <mesh key={i} position={[-centerOffset.x, -centerOffset.y, 0]} receiveShadow castShadow>
@@ -202,7 +208,7 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                                 roughness={0.3} 
                                 metalness={0.6}
                                 emissive="#06b6d4" 
-                                emissiveIntensity={0.2}
+                                emissiveIntensity={0.15}
                             />
                         </mesh>
                     ))}
@@ -221,10 +227,13 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                 {/* Data Points */}
                 {points.map((point) => (
                     <group key={point.id} position={point.position}>
+                        {/* Vertical Indicator Line */}
                         <mesh position={[0, 0, point.mobileMoneyUsage / 3000 / 2]}>
-                            <cylinderGeometry args={[0.015, 0.015, point.mobileMoneyUsage / 3000, 4]} />
+                            <cylinderGeometry args={[0.02, 0.02, point.mobileMoneyUsage / 3000, 4]} />
                             <meshBasicMaterial color={point.color} transparent opacity={0.6} />
                         </mesh>
+                        
+                        {/* Node Sphere */}
                         <mesh 
                             position={[0, 0, point.mobileMoneyUsage / 3000]}
                             onClick={(e) => {
@@ -242,17 +251,19 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                                 setHoveredId(null);
                             }}
                         >
-                            <sphereGeometry args={[0.12, 16, 16]} />
+                            <sphereGeometry args={[0.15, 16, 16]} />
                             <meshStandardMaterial 
                                 color={point.color} 
                                 emissive={point.color}
-                                emissiveIntensity={hoveredId === point.id ? 3 : 1.5}
+                                emissiveIntensity={hoveredId === point.id ? 3 : 1}
                                 toneMapped={false}
                             />
                         </mesh>
+
+                        {/* Hover Tooltip */}
                         {hoveredId === point.id && (
-                             <Html distanceFactor={10} zIndexRange={[100, 0]}>
-                                <div className="bg-slate-900/95 backdrop-blur-xl border border-emerald-500/50 p-3 rounded-lg text-xs text-white whitespace-nowrap pointer-events-none transform -translate-y-14 -translate-x-1/2 shadow-xl shadow-black/80 z-50">
+                             <Html distanceFactor={12} zIndexRange={[100, 0]}>
+                                <div className="bg-slate-900/95 backdrop-blur-xl border border-emerald-500/50 p-3 rounded-lg text-xs text-white whitespace-nowrap pointer-events-none transform -translate-y-16 -translate-x-1/2 shadow-xl shadow-black/80 z-50">
                                     <div className="font-bold text-emerald-400 font-tech uppercase tracking-wider text-sm">{point.name}</div>
                                     <div className="text-slate-300 font-mono text-[10px] mt-0.5">{point.location.city}</div>
                                     <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800">
@@ -266,21 +277,22 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                         )}
                     </group>
                 ))}
-            </Float>
 
-             <Text
-                position={[0, 5, 0]}
-                fontSize={0.8}
-                color="#e2e8f0"
-                font="https://fonts.gstatic.com/s/rajdhani/v15/L1RYZPSJnHxp-pHTHdbz4K4.woff"
-                anchorX="center"
-                anchorY="middle"
-                outlineWidth={0.02}
-                outlineColor="#0f172a"
-            >
-                {countryName.toUpperCase()}
-            </Text>
-        </group>
-    </Center>
+                 {/* Country Label */}
+                 <Text
+                    position={[0, centerOffset.y + 1, 0]}
+                    fontSize={1}
+                    color="#e2e8f0"
+                    font="https://fonts.gstatic.com/s/rajdhani/v15/L1RYZPSJnHxp-pHTHdbz4K4.woff"
+                    anchorX="center"
+                    anchorY="middle"
+                    outlineWidth={0.02}
+                    outlineColor="#0f172a"
+                >
+                    {countryName.toUpperCase()}
+                </Text>
+            </group>
+        </Float>
+    </group>
   );
 };
