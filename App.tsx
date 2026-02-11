@@ -202,18 +202,24 @@ const App: React.FC = () => {
       </header>
 
       {/* Back Button (Only when Country Selected) */}
+      {/* Country Name Display */}
       {selectedCountryName && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-6 pointer-events-none">
-          <div className="relative animate-in slide-in-from-top-4 duration-700 fade-in">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <div className="relative animate-in slide-in-from-top-4 duration-700 fade-in flex flex-col items-center">
             <h1 className="text-4xl md:text-6xl font-bold font-tech text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-[0.2em] uppercase drop-shadow-[0_0_25px_rgba(16,185,129,0.3)] text-center">
               {selectedCountryName}
             </h1>
             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
           </div>
+        </div>
+      )}
 
+      {/* Return to Orbit Button */}
+      {selectedCountryName && (
+        <div className="absolute top-24 right-6 z-20">
           <button
             onClick={() => setSelectedCountryName(null)}
-            className="pointer-events-auto flex items-center gap-2 px-6 py-2 bg-slate-950/50 hover:bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-full text-emerald-400 text-xs font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] group"
+            className="flex items-center gap-2 px-6 py-2 bg-slate-950/50 hover:bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-full text-emerald-400 text-xs font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] group"
           >
             <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> Return to Orbit
           </button>
