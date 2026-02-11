@@ -432,6 +432,21 @@ const App: React.FC = () => {
         {!selectedBorrower ? (
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
             {(() => {
+              // If country selected but no regional stats (no borrowers), show empty state
+              if (selectedCountryName && !regionalStats) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+                    <div className="p-3 bg-slate-800/50 rounded-full mb-3">
+                      <Users className="w-6 h-6 text-slate-600" />
+                    </div>
+                    <h3 className="font-tech text-lg font-bold text-slate-400 mb-1">{selectedCountryName}</h3>
+                    <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
+                      No active credit entities currently monitored in this region.
+                    </p>
+                  </div>
+                );
+              }
+
               const stats = (selectedCountryName && regionalStats) ? regionalStats : globalStats;
               if (!stats) return null;
 
