@@ -3,7 +3,6 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { Globe } from './components/Globe';
 import { CountryMap } from './components/CountryMap';
-import { CountryScene } from './components/CountryScene';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
 import { MOCK_BORROWERS } from './utils/data';
 import { Borrower } from './types';
@@ -17,9 +16,6 @@ import {
   Menu,
   X,
   MapPin,
-  Map as MapIcon,
-  ChevronRight,
-  Maximize2,
   ArrowLeft
 } from 'lucide-react';
 
@@ -104,15 +100,8 @@ const App: React.FC = () => {
             
             <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
             
-            {/* Conditional Rendering: Globe vs Country Scene */}
-            {selectedCountryName ? (
-               <CountryScene 
-                  countryName={selectedCountryName}
-                  geoJson={geoJson}
-                  borrowers={countryBorrowers}
-                  onSelectBorrower={setSelectedBorrower}
-               />
-            ) : (
+            {/* Render Globe only if no country is selected */}
+            {!selectedCountryName && (
                <Globe 
                 borrowers={borrowers} 
                 onSelectBorrower={setSelectedBorrower} 
@@ -124,11 +113,11 @@ const App: React.FC = () => {
             
             <OrbitControls 
               makeDefault
-              enablePan={!!selectedCountryName} 
-              enableZoom={true} 
-              minDistance={selectedCountryName ? 2 : 3} 
-              maxDistance={selectedCountryName ? 20 : 15}
-              autoRotate={!selectedBorrower && !selectedCountryName} 
+              enablePan={false}
+              enableZoom={!selectedCountryName} 
+              minDistance={3} 
+              maxDistance={15}
+              autoRotate={!selectedCountryName} 
               autoRotateSpeed={0.5}
             />
           </Suspense>
@@ -187,7 +176,7 @@ const App: React.FC = () => {
 
       {/* Back Button (Only when Country Selected) */}
       {selectedCountryName && (
-         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-10">
+         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30">
              <button 
                 onClick={() => setSelectedCountryName(null)}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-slate-800 backdrop-blur border border-slate-700 rounded-full text-slate-200 text-xs font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
@@ -195,6 +184,26 @@ const App: React.FC = () => {
                 <ArrowLeft className="w-3 h-3" /> Return to Orbit
              </button>
          </div>
+      )}
+
+      {/* CENTER OVERLAY: Big 2D Map (Replaces 3D Scene) */}
+      {selectedCountryName && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-8 md:p-20 pointer-events-none">
+             <div className="w-full h-full max-w-6xl max-h-[85vh] relative pointer-events-auto animate-in fade-in zoom-in duration-500">
+                  <CountryMap 
+                      countryName={selectedCountryName} 
+                      geoJson={geoJson} 
+                      borrowers={countryBorrowers} 
+                      onSelectBorrower={setSelectedBorrower}
+                      className="w-full h-full shadow-2xl shadow-black/80 rounded-3xl border border-slate-800/60 bg-slate-950/80 backdrop-blur-md"
+                  />
+                  {/* Decorative Tech Corners */}
+                  <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-emerald-500/50 rounded-tl-2xl -translate-x-1 -translate-y-1"></div>
+                  <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-emerald-500/50 rounded-tr-2xl translate-x-1 -translate-y-1"></div>
+                  <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-emerald-500/50 rounded-bl-2xl -translate-x-1 translate-y-1"></div>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-emerald-500/50 rounded-br-2xl translate-x-1 translate-y-1"></div>
+             </div>
+        </div>
       )}
 
       {/* Left Panel - Navigation & List */}
@@ -249,18 +258,6 @@ const App: React.FC = () => {
         {selectedCountryName ? (
            <div className="pointer-events-auto flex flex-col max-h-[65vh] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-0 shadow-xl shadow-black/50 overflow-hidden">
              
-             {/* 2D Mini Map in Sidebar */}
-             <div className="h-48 w-full shrink-0 border-b border-slate-800 relative z-0 bg-slate-950/50">
-                 <CountryMap 
-                    countryName={selectedCountryName} 
-                    geoJson={geoJson} 
-                    borrowers={countryBorrowers} 
-                 />
-                 <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur rounded text-[9px] text-slate-400 font-mono">
-                    2D VIEW
-                 </div>
-             </div>
-
              {/* List Header */}
              <div className="p-3 border-b border-slate-700 bg-slate-950/50">
                  <div className="flex justify-between items-center">
