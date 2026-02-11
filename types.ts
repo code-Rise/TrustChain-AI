@@ -12,6 +12,8 @@ export interface Borrower {
   spendingTrend: number[];
   repaymentHistory: number; // Percentage
   mobileMoneyUsage: number; // Volume
+  approved?: boolean;
+  maxLimit?: number;
 }
 
 export interface ChartData {
