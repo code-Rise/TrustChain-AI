@@ -45,11 +45,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
-    // Fetch GeoJSON once at App level
-    fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson')
+    // Fetch higher resolution GeoJSON (50m) for better detail on small countries like Rwanda
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson')
       .then(res => res.json())
       .then(data => setGeoJson(data))
-      .catch(err => console.error("Failed to load country data", err));
+      .catch(err => {
+        console.error("Failed to load high-res country data, falling back to low-res", err);
+        // Fallback if the raw github link fails
+        fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson')
+          .then(res => res.json())
+          .then(data => setGeoJson(data));
+      });
   }, []);
 
   if (!mounted) return null;
