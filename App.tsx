@@ -2,6 +2,7 @@ import React, { useState, Suspense, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { Globe } from './components/Globe';
+import { CountryMap } from './components/CountryMap';
 import { CountryScene } from './components/CountryScene';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
 import { MOCK_BORROWERS } from './utils/data';
@@ -17,7 +18,9 @@ import {
   X,
   MapPin,
   Map as MapIcon,
-  ChevronRight
+  ChevronRight,
+  Maximize2,
+  ArrowLeft
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -92,7 +95,7 @@ const App: React.FC = () => {
       <div className="absolute inset-0 z-0">
         <Canvas camera={{ position: [0, 0, 6], fov: 45, near: 0.01 }}>
           <Suspense fallback={null}>
-            {/* Lighting Setup */}
+            {/* Lighting */}
             <ambientLight intensity={0.4} />
             <hemisphereLight args={['#ffffff', '#000000', 0.8]} />
             <directionalLight position={[10, 10, 5]} intensity={1.5} color="#4ade80" />
@@ -113,7 +116,7 @@ const App: React.FC = () => {
                <Globe 
                 borrowers={borrowers} 
                 onSelectBorrower={setSelectedBorrower} 
-                selectedCountry={null} // Pass null to globe when in global mode, map clicks set name
+                selectedCountry={null}
                 onSelectCountry={setSelectedCountryName}
                 data={geoJson}
               />
@@ -121,11 +124,10 @@ const App: React.FC = () => {
             
             <OrbitControls 
               makeDefault
-              enablePan={!!selectedCountryName} // Allow pan in country mode
+              enablePan={!!selectedCountryName} 
               enableZoom={true} 
-              // Different constraints based on view mode
-              minDistance={selectedCountryName ? 2 : 2.6} 
-              maxDistance={selectedCountryName ? 20 : 12}
+              minDistance={selectedCountryName ? 2 : 3} 
+              maxDistance={selectedCountryName ? 20 : 15}
               autoRotate={!selectedBorrower && !selectedCountryName} 
               autoRotateSpeed={0.5}
             />
@@ -183,11 +185,23 @@ const App: React.FC = () => {
         </button>
       </header>
 
-      {/* Left Panel - Global Overview or Country Detail */}
-      <aside className={`absolute top-24 left-6 w-80 max-h-[calc(100vh-140px)] flex flex-col gap-4 z-10 transition-transform duration-500 ${showMobileMenu ? 'translate-x-0' : '-translate-x-[120%] md:translate-x-0'}`}>
+      {/* Back Button (Only when Country Selected) */}
+      {selectedCountryName && (
+         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-10">
+             <button 
+                onClick={() => setSelectedCountryName(null)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-slate-800 backdrop-blur border border-slate-700 rounded-full text-slate-200 text-xs font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+             >
+                <ArrowLeft className="w-3 h-3" /> Return to Orbit
+             </button>
+         </div>
+      )}
+
+      {/* Left Panel - Navigation & List */}
+      <aside className={`absolute top-24 left-6 w-80 max-h-[85vh] flex flex-col gap-4 z-20 transition-transform duration-500 ${showMobileMenu ? 'translate-x-0' : '-translate-x-[120%] md:translate-x-0'}`}>
         
         {/* Search Panel */}
-        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-xl shadow-black/50 pointer-events-auto z-20">
+        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-xl shadow-black/50 pointer-events-auto">
           <div className="relative">
              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
              <input 
@@ -231,51 +245,56 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Dynamic Panel: Shows Risk Mix globally, OR Site List when country selected */}
+        {/* Dynamic Panel: List or Global Charts */}
         {selectedCountryName ? (
-           <div className="pointer-events-auto flex flex-col max-h-[60vh] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-0 shadow-xl shadow-black/50 overflow-hidden">
+           <div className="pointer-events-auto flex flex-col max-h-[65vh] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-0 shadow-xl shadow-black/50 overflow-hidden">
              
-             {/* Panel Header */}
-             <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-950/50">
-                 <div>
-                    <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
-                        <MapIcon className="w-4 h-4 text-emerald-500" /> {selectedCountryName}
-                    </h3>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">{countryBorrowers.length} Active Sites</p>
+             {/* 2D Mini Map in Sidebar */}
+             <div className="h-48 w-full shrink-0 border-b border-slate-800 relative z-0 bg-slate-950/50">
+                 <CountryMap 
+                    countryName={selectedCountryName} 
+                    geoJson={geoJson} 
+                    borrowers={countryBorrowers} 
+                 />
+                 <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur rounded text-[9px] text-slate-400 font-mono">
+                    2D VIEW
                  </div>
-                 <button 
-                   onClick={() => setSelectedCountryName(null)}
-                   className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 px-2 py-1 rounded text-white transition-colors"
-                 >
-                   Back to Globe
-                 </button>
+             </div>
+
+             {/* List Header */}
+             <div className="p-3 border-b border-slate-700 bg-slate-950/50">
+                 <div className="flex justify-between items-center">
+                    <span className="text-white font-tech text-lg">{countryBorrowers.length} Entities</span>
+                    <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live
+                    </span>
+                 </div>
              </div>
              
              {/* Sites List */}
-             <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                {countryBorrowers.map(borrower => (
+             <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-900/50 custom-scrollbar">
+                {countryBorrowers.sort((a,b) => a.creditScore - b.creditScore).map(borrower => (
                   <div 
                     key={borrower.id}
                     onClick={() => setSelectedBorrower(borrower)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all hover:translate-x-1 ${
+                    className={`p-3 rounded-lg border cursor-pointer transition-all hover:bg-slate-800 ${
                         selectedBorrower?.id === borrower.id 
-                        ? 'bg-emerald-500/10 border-emerald-500/50' 
+                        ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
                         : 'bg-slate-950/30 border-slate-800 hover:border-slate-600'
                     }`}
                   >
-                     <div className="flex justify-between items-start">
-                        <div>
-                            <div className="text-sm font-bold text-slate-200">{borrower.name}</div>
-                            <div className="text-xs text-slate-500 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> {borrower.location.city}
-                            </div>
-                        </div>
-                        <div className={`text-xs font-mono px-1.5 py-0.5 rounded ${
+                     <div className="flex justify-between items-center mb-1">
+                        <div className="text-sm font-bold text-slate-200">{borrower.name}</div>
+                        <div className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
                             borrower.riskLevel === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
                             borrower.riskLevel === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
                         }`}>
                             {borrower.creditScore}
                         </div>
+                     </div>
+                     <div className="flex justify-between items-center text-xs text-slate-500">
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {borrower.location.city}</span>
+                        <span>{borrower.id}</span>
                      </div>
                   </div>
                 ))}
@@ -303,7 +322,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* Right Panel - Borrower Detail (Shows when selected) */}
-      <aside className={`absolute top-24 right-6 w-80 md:w-96 flex flex-col gap-4 z-10 transition-all duration-500 ${selectedBorrower ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0'}`}>
+      <aside className={`absolute top-24 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 ${selectedBorrower ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0'}`}>
         {selectedBorrower && (
           <div className="bg-slate-900/90 backdrop-blur-xl border border-emerald-500/30 rounded-xl overflow-hidden shadow-2xl shadow-emerald-900/20 pointer-events-auto">
             

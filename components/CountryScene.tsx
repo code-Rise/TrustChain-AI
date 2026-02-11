@@ -11,17 +11,34 @@ interface CountrySceneProps {
   onSelectBorrower: (b: Borrower | null) => void;
 }
 
-// Subcomponent for Outline Lines to avoid <line> TS conflict and optimize instantiation
+// Subcomponent for Outline Lines to handle both outer boundary and holes (lakes)
 const CountryOutline: React.FC<{ shape: THREE.Shape, x: number, y: number }> = ({ shape, x, y }) => {
-  const line = useMemo(() => new THREE.Line(), []);
-  const geometry = useMemo(() => new THREE.BufferGeometry().setFromPoints(shape.getPoints()), [shape]);
+  const lines = useMemo(() => {
+      const result: THREE.Line[] = [];
+      const material = new THREE.LineBasicMaterial({ 
+          color: "#22d3ee", 
+          transparent: true, 
+          opacity: 0.6,
+          linewidth: 1 
+      });
+      
+      // Outer contour
+      const outerGeo = new THREE.BufferGeometry().setFromPoints(shape.getPoints());
+      result.push(new THREE.Line(outerGeo, material));
+
+      // Inner holes (e.g. lakes)
+      shape.holes.forEach((h: any) => {
+          const holeGeo = new THREE.BufferGeometry().setFromPoints(h.getPoints());
+          result.push(new THREE.Line(holeGeo, material));
+      });
+      return result;
+  }, [shape]);
 
   return (
-    <primitive object={line} position={[x, y, 0.32]}>
-       <primitive object={geometry} attach="geometry" />
-       <lineBasicMaterial attach="material" color="#22d3ee" transparent opacity={0.6} linewidth={2} />
-    </primitive>
-  )
+    <group position={[x, y, 0.26]}>
+        {lines.map((line, i) => <primitive key={i} object={line} />)}
+    </group>
+  );
 }
 
 export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson, borrowers, onSelectBorrower }) => {
@@ -36,7 +53,6 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
     // Robust Name Matching
     const feature = geoJson.features.find((f: any) => {
        const p = f.properties;
-       // Collect all possible name fields
        const candidates = [
            p.name, p.NAME, p.ADMIN, p.NAME_LONG, p.brk_name, p.formal_en, p.sovereignt, p.gu_a3, p.su_a3
        ].filter(v => typeof v === 'string');
@@ -49,12 +65,11 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                   (target === 'usa' && (c === 'united states' || c.includes('united states'))) ||
                   (target === 'uk' && (c === 'united kingdom' || c === 'great britain')) ||
                   (target === 'uae' && c.includes('arab emirates')) ||
-                  c.includes(target); // Partial match (e.g. "Republic of Rwanda" matches "Rwanda")
+                  c.includes(target);
        });
     });
 
     if (!feature) {
-        console.warn(`Country feature not found for: ${countryName}`);
         return { shapes: [], centerOffset: { x: 0, y: 0 }, projectionScale: 1, minBounds: { x: 0, y: 0 }, error: `Map Data Not Found for ${countryName}` };
     }
 
@@ -67,26 +82,21 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
         if (lat > maxLat) maxLat = lat;
     };
 
-    const geometry = feature.geometry;
-    
-    // First pass to calculate bounds
-    const scanCoords = (coords: any[]) => {
-        coords.forEach(pt => updateBounds(pt[0], pt[1]));
+    const traverseCoords = (coords: any, type: string) => {
+         if (type === 'Polygon') {
+             coords.forEach((ring: any[]) => ring.forEach(pt => updateBounds(pt[0], pt[1])));
+         } else if (type === 'MultiPolygon') {
+             coords.forEach((poly: any[]) => poly.forEach((ring: any[]) => ring.forEach(pt => updateBounds(pt[0], pt[1]))));
+         }
     };
+    traverseCoords(feature.geometry.coordinates, feature.geometry.type);
 
-    if (geometry.type === 'Polygon') {
-        geometry.coordinates.forEach((ring: any[]) => scanCoords(ring));
-    } else if (geometry.type === 'MultiPolygon') {
-        geometry.coordinates.forEach((poly: any[]) => poly.forEach((ring: any[]) => scanCoords(ring)));
-    }
-
-    // Determine scale to fit in view (approx width of 10 units)
+    // Determine scale to fit in view (approx width of 14 units)
     const lngSpan = maxLng - minLng;
     const latSpan = maxLat - minLat;
-    // Prevent division by zero or negative spans
     const safeLngSpan = lngSpan > 0 ? lngSpan : 1;
     const safeLatSpan = latSpan > 0 ? latSpan : 1;
-    const scale = 12 / Math.max(safeLngSpan, safeLatSpan);
+    const scale = 14 / Math.max(safeLngSpan, safeLatSpan);
 
     const createShapeFromRing = (ring: any[]) => {
         const shape = new THREE.Shape();
@@ -104,9 +114,9 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
 
     const generatedShapes: THREE.Shape[] = [];
 
-    const processPolygon = (coords: any[]) => {
+    const processPolygonCoords = (coords: any[]) => {
          if (coords.length === 0) return;
-         // Outer ring
+         // Outer ring is usually the first element in GeoJSON Polygon coordinates
          const outerShape = createShapeFromRing(coords[0]);
          
          // Inner rings (Holes)
@@ -117,13 +127,13 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
          generatedShapes.push(outerShape);
     };
 
-    if (geometry.type === 'Polygon') {
-        processPolygon(geometry.coordinates);
-    } else if (geometry.type === 'MultiPolygon') {
-        geometry.coordinates.forEach((poly: any[]) => processPolygon(poly));
+    if (feature.geometry.type === 'Polygon') {
+        processPolygonCoords(feature.geometry.coordinates);
+    } else if (feature.geometry.type === 'MultiPolygon') {
+        feature.geometry.coordinates.forEach(processPolygonCoords);
     }
 
-    // Center offset to center the mesh at 0,0
+    // Center offset
     const centerX = (safeLngSpan * scale) / 2;
     const centerY = (safeLatSpan * scale) / 2;
 
@@ -138,26 +148,22 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
 
   // Reset camera when country changes
   useEffect(() => {
-      // Ensure controls target is reset so we look at the map
       if (controls) {
           const orbit = controls as any;
           orbit.target.set(0, 0, 0);
           orbit.update();
       }
-      camera.position.set(0, -4, 14); // Adjusted for better view
+      camera.position.set(0, -5, 12);
       camera.lookAt(0, 0, 0);
   }, [countryName, camera, controls, shapes.length]);
 
-  // Process Borrowers into 3D positions
   const points = useMemo(() => {
       return borrowers.map(b => {
           const x = ((b.location.lng - minBounds.x) * projectionScale) - centerOffset.x;
           const y = ((b.location.lat - minBounds.y) * projectionScale) - centerOffset.y;
-          
           let color = '#34d399';
           if (b.riskLevel === 'Medium') color = '#fbbf24';
           if (b.riskLevel === 'High') color = '#ef4444';
-
           return { ...b, position: new THREE.Vector3(x, y, 0.4), color };
       });
   }, [borrowers, minBounds, projectionScale, centerOffset]);
@@ -168,13 +174,6 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
               <Text color="white" fontSize={0.5} position={[0,0,0]}>
                   {error || "Analyzing Terrain..."}
               </Text>
-               {/* Show points even if map missing, relative to center (approx) */}
-               {points.length > 0 && points.map((point) => (
-                    <group key={point.id} position={[0, 0, 0]}> 
-                         {/* Fallback layout if map missing isn't possible accurately without bounds, 
-                             so we just show the error text. */}
-                    </group>
-               ))}
           </Center>
       )
   }
@@ -182,8 +181,6 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
   return (
     <Center>
         <group ref={meshRef} rotation={[-0.1, 0, 0]}> 
-            
-            {/* Grid Floor for context */}
             <Grid 
                 position={[0, 0, -0.5]} 
                 args={[40, 40]} 
@@ -193,24 +190,24 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                 fadeStrength={1}
                 infiniteGrid
             />
-
-            {/* Country Base Mesh */}
+            
             <Float speed={1.5} rotationIntensity={0.05} floatIntensity={0.1}>
                 <group>
                     {shapes.map((shape, i) => (
                         <mesh key={i} position={[-centerOffset.x, -centerOffset.y, 0]} receiveShadow castShadow>
-                            <extrudeGeometry args={[shape, { depth: 0.3, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02 }]} />
+                            {/* Extruded Geometry with Bevels */}
+                            <extrudeGeometry args={[shape, { depth: 0.25, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02 }]} />
                             <meshStandardMaterial 
-                                color="#0f172a" // Darker Slate (almost black/blue)
+                                color="#0f172a" 
                                 roughness={0.3} 
                                 metalness={0.6}
-                                emissive="#06b6d4" // Cyan emissive
-                                emissiveIntensity={0.15}
+                                emissive="#06b6d4" 
+                                emissiveIntensity={0.2}
                             />
                         </mesh>
                     ))}
                     
-                    {/* Outline for tech look */}
+                    {/* Render Outlines (Boundary + Holes) */}
                     {shapes.map((shape, i) => (
                         <CountryOutline 
                           key={`line-${i}`} 
@@ -224,13 +221,10 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                 {/* Data Points */}
                 {points.map((point) => (
                     <group key={point.id} position={point.position}>
-                        {/* Vertical Line Indicator */}
                         <mesh position={[0, 0, point.mobileMoneyUsage / 3000 / 2]}>
                             <cylinderGeometry args={[0.015, 0.015, point.mobileMoneyUsage / 3000, 4]} />
                             <meshBasicMaterial color={point.color} transparent opacity={0.6} />
                         </mesh>
-
-                        {/* Interactive Dot */}
                         <mesh 
                             position={[0, 0, point.mobileMoneyUsage / 3000]}
                             onClick={(e) => {
@@ -256,8 +250,6 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                                 toneMapped={false}
                             />
                         </mesh>
-
-                        {/* Text Label on Hover */}
                         {hoveredId === point.id && (
                              <Html distanceFactor={10} zIndexRange={[100, 0]}>
                                 <div className="bg-slate-900/95 backdrop-blur-xl border border-emerald-500/50 p-3 rounded-lg text-xs text-white whitespace-nowrap pointer-events-none transform -translate-y-14 -translate-x-1/2 shadow-xl shadow-black/80 z-50">
@@ -268,11 +260,6 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                                             <span className="text-[9px] text-slate-500 uppercase">Score</span>
                                             <span className="font-bold text-emerald-400">{point.creditScore}</span>
                                         </div>
-                                        <div className="w-px h-6 bg-slate-800"></div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[9px] text-slate-500 uppercase">Vol</span>
-                                            <span className="font-bold text-slate-200">${point.mobileMoneyUsage}</span>
-                                        </div>
                                     </div>
                                 </div>
                             </Html>
@@ -281,9 +268,8 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
                 ))}
             </Float>
 
-             {/* Country Label Floating Above */}
              <Text
-                position={[0, 4.5, 0]}
+                position={[0, 5, 0]}
                 fontSize={0.8}
                 color="#e2e8f0"
                 font="https://fonts.gstatic.com/s/rajdhani/v15/L1RYZPSJnHxp-pHTHdbz4K4.woff"
@@ -294,7 +280,6 @@ export const CountryScene: React.FC<CountrySceneProps> = ({ countryName, geoJson
             >
                 {countryName.toUpperCase()}
             </Text>
-
         </group>
     </Center>
   );
