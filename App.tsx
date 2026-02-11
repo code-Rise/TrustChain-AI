@@ -372,15 +372,8 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10 overflow-hidden max-h-[60vh]">
-            <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-              <Globe2 className="w-4 h-4 text-emerald-500" /> Regional Risk Mix
-            </h3>
-            <div className="w-full -ml-2 h-[180px] shrink-0">
-              <CreditMixChart data={borrowers} />
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-slate-800 overflow-y-auto custom-scrollbar">
-              <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">High Risk Regions</h4>
+            <div className="flex-1 overflow-y-auto custom-scrollbar mb-4">
+              <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 sticky top-0 bg-slate-900/90 z-10 py-1 backdrop-blur-sm">High Risk Regions</h4>
               <div className="space-y-2">
                 {countryStats.map(stat => (
                   <div key={stat.country} className="flex items-center justify-between p-2 rounded bg-slate-950/30 border border-slate-800/50 hover:bg-slate-800/50 cursor-pointer transition-colors" onClick={() => setSelectedCountryName(stat.country)}>
@@ -396,6 +389,15 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4 border-t border-slate-800">
+              <h3 className="font-tech text-xs font-bold text-slate-400 mb-2 flex items-center gap-2 uppercase tracking-wider">
+                <Globe2 className="w-3 h-3 text-emerald-500" /> Regional Risk Mix
+              </h3>
+              <div className="w-full h-[150px] shrink-0">
+                <CreditMixChart data={borrowers} />
               </div>
             </div>
           </div>
