@@ -86,7 +86,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
   const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
   
   // Load Earth Texture (Blue Marble / Satellite View)
-  const earthMap = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+  // Switched to a reliable github raw content URL to avoid unpkg CORS/availability issues
+  const earthMap = useLoader(THREE.TextureLoader, 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
 
   // Process GeoJSON into 3D Lines
   const countryBorders = useMemo(() => {
