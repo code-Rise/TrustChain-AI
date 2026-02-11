@@ -320,7 +320,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
 
   return (
     <group ref={groupRef}>
-      {/* Main Sphere (Earth Map) - Darkened for futuristic look */}
+      {/* Main Sphere (Earth Map) - Brightened for better visibility */}
       <Sphere 
         args={[GLOBE_RADIUS, 64, 64]} 
         onClick={handleGlobeClick}
@@ -332,11 +332,11 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       >
         <meshStandardMaterial
           map={earthMap}
-          color="#475569" // Dark Slate
-          roughness={0.8}
+          color="#cbd5e1" // Light Slate - Brightened from #475569
+          roughness={0.6}
           metalness={0.1}
-          emissive="#020617" // Very dark blue
-          emissiveIntensity={0.5}
+          emissive="#1e293b" // Slate-800 - Adds subtle blue-grey glow, lighter than before
+          emissiveIntensity={0.3}
         />
       </Sphere>
 
@@ -383,12 +383,12 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
           </Html>
       )}
 
-      {/* Atmosphere Glow */}
+      {/* Atmosphere Glow - Brighter */}
        <Sphere args={[GLOBE_RADIUS + 0.2, 32, 32]}>
         <meshBasicMaterial
-          color="#1e293b"
+          color="#38bdf8" // Sky blue-400
           transparent
-          opacity={0.05}
+          opacity={0.08}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
         />

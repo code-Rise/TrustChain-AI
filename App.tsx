@@ -2,8 +2,8 @@ import React, { useState, Suspense, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { Globe } from './components/Globe';
+import { CountryScene } from './components/CountryScene';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
-import { CountryMap } from './components/CountryMap';
 import { MOCK_BORROWERS } from './utils/data';
 import { Borrower } from './types';
 import { 
@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   MapPin,
-  Map as MapIcon
+  Map as MapIcon,
+  ChevronRight
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -42,6 +43,12 @@ const App: React.FC = () => {
       c.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, availableCountries]);
+
+  // Derived list of borrowers for the selected country (for the sidebar list)
+  const countryBorrowers = useMemo(() => {
+    if (!selectedCountryName) return [];
+    return borrowers.filter(b => b.location.country === selectedCountryName);
+  }, [selectedCountryName, borrowers]);
 
   useEffect(() => {
     setMounted(true);
@@ -85,7 +92,7 @@ const App: React.FC = () => {
       <div className="absolute inset-0 z-0">
         <Canvas camera={{ position: [0, 0, 6], fov: 45, near: 0.01 }}>
           <Suspense fallback={null}>
-            {/* Lighting Setup (Replaces Environment preset to avoid fetch errors) */}
+            {/* Lighting Setup */}
             <ambientLight intensity={0.4} />
             <hemisphereLight args={['#ffffff', '#000000', 0.8]} />
             <directionalLight position={[10, 10, 5]} intensity={1.5} color="#4ade80" />
@@ -94,22 +101,32 @@ const App: React.FC = () => {
             
             <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
             
-            <Globe 
-              borrowers={borrowers} 
-              onSelectBorrower={setSelectedBorrower} 
-              selectedCountry={selectedCountryName}
-              onSelectCountry={setSelectedCountryName}
-              data={geoJson}
-            />
+            {/* Conditional Rendering: Globe vs Country Scene */}
+            {selectedCountryName ? (
+               <CountryScene 
+                  countryName={selectedCountryName}
+                  geoJson={geoJson}
+                  borrowers={countryBorrowers}
+                  onSelectBorrower={setSelectedBorrower}
+               />
+            ) : (
+               <Globe 
+                borrowers={borrowers} 
+                onSelectBorrower={setSelectedBorrower} 
+                selectedCountry={null} // Pass null to globe when in global mode, map clicks set name
+                onSelectCountry={setSelectedCountryName}
+                data={geoJson}
+              />
+            )}
             
             <OrbitControls 
               makeDefault
-              enablePan={false} 
+              enablePan={!!selectedCountryName} // Allow pan in country mode
               enableZoom={true} 
-              // Enforce strictly > 2.5 (Globe Radius) to prevents clipping/penetration
-              minDistance={2.6} 
-              maxDistance={12}
-              autoRotate={!selectedBorrower && !selectedCountryName} // Stop rotation if borrower selected OR map mode active
+              // Different constraints based on view mode
+              minDistance={selectedCountryName ? 2 : 2.6} 
+              maxDistance={selectedCountryName ? 20 : 12}
+              autoRotate={!selectedBorrower && !selectedCountryName} 
               autoRotateSpeed={0.5}
             />
           </Suspense>
@@ -214,25 +231,55 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Dynamic Panel: Shows Risk Mix globally, OR Map when country selected */}
+        {/* Dynamic Panel: Shows Risk Mix globally, OR Site List when country selected */}
         {selectedCountryName ? (
-           <div className="pointer-events-auto">
-             <div className="flex items-center justify-between mb-2">
-                 <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
-                    <MapIcon className="w-4 h-4 text-emerald-500" /> {selectedCountryName} Map
-                 </h3>
+           <div className="pointer-events-auto flex flex-col max-h-[60vh] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-0 shadow-xl shadow-black/50 overflow-hidden">
+             
+             {/* Panel Header */}
+             <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-950/50">
+                 <div>
+                    <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
+                        <MapIcon className="w-4 h-4 text-emerald-500" /> {selectedCountryName}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">{countryBorrowers.length} Active Sites</p>
+                 </div>
                  <button 
                    onClick={() => setSelectedCountryName(null)}
-                   className="text-xs text-slate-500 hover:text-white flex items-center gap-1"
+                   className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 px-2 py-1 rounded text-white transition-colors"
                  >
-                   <X className="w-3 h-3" /> Global View
+                   Back to Globe
                  </button>
              </div>
-             <CountryMap 
-               countryName={selectedCountryName} 
-               geoJson={geoJson} 
-               borrowers={borrowers.filter(b => b.location.country === selectedCountryName)}
-             />
+             
+             {/* Sites List */}
+             <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {countryBorrowers.map(borrower => (
+                  <div 
+                    key={borrower.id}
+                    onClick={() => setSelectedBorrower(borrower)}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all hover:translate-x-1 ${
+                        selectedBorrower?.id === borrower.id 
+                        ? 'bg-emerald-500/10 border-emerald-500/50' 
+                        : 'bg-slate-950/30 border-slate-800 hover:border-slate-600'
+                    }`}
+                  >
+                     <div className="flex justify-between items-start">
+                        <div>
+                            <div className="text-sm font-bold text-slate-200">{borrower.name}</div>
+                            <div className="text-xs text-slate-500 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {borrower.location.city}
+                            </div>
+                        </div>
+                        <div className={`text-xs font-mono px-1.5 py-0.5 rounded ${
+                            borrower.riskLevel === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
+                            borrower.riskLevel === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                        }`}>
+                            {borrower.creditScore}
+                        </div>
+                     </div>
+                  </div>
+                ))}
+             </div>
            </div>
         ) : (
           <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10">
