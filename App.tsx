@@ -371,15 +371,15 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10 overflow-hidden">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10 overflow-hidden max-h-[60vh]">
             <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
               <Globe2 className="w-4 h-4 text-emerald-500" /> Regional Risk Mix
             </h3>
-            <div className="flex-1 w-full -ml-2 min-h-[180px]">
+            <div className="w-full -ml-2 h-[180px] shrink-0">
               <CreditMixChart data={borrowers} />
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-800 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="mt-4 pt-4 border-t border-slate-800 overflow-y-auto custom-scrollbar">
               <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">High Risk Regions</h4>
               <div className="space-y-2">
                 {countryStats.map(stat => (
