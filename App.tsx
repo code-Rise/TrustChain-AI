@@ -91,7 +91,7 @@ const App: React.FC = () => {
               makeDefault
               enablePan={false} 
               enableZoom={true} 
-              minDistance={2.6} // Allow zooming in closer
+              minDistance={2.55} // Allow zooming in closer for small countries
               maxDistance={12}
               autoRotate={!selectedBorrower && !selectedCountryName} // Stop rotation if borrower selected OR map mode active
               autoRotateSpeed={0.5}

@@ -46,6 +46,31 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
     return inside;
 };
 
+// Extracted Line component to handle its own animation state
+const CountryLine: React.FC<{ points: THREE.Vector3[], isSelected: boolean }> = ({ points, isSelected }) => {
+    const [pulse, setPulse] = useState(0);
+    
+    useFrame((state, delta) => {
+        if (isSelected) {
+            setPulse(prev => prev + delta * 5);
+        }
+    });
+
+    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.1;
+    const width = isSelected ? 4 : 1;
+    const color = isSelected ? "#4ade80" : "#64748b"; // emerald-400 vs slate-500
+
+    return (
+        <Line
+            points={points}
+            color={color}
+            lineWidth={width}
+            transparent
+            opacity={opacity}
+        />
+    );
+};
+
 export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selectedCountry, onSelectCountry, data: geoJson }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -55,6 +80,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
   const [hoveredPoint, setHoveredPoint] = useState<THREE.Vector3 | null>(null);
 
   const [selectedCountryCenter, setSelectedCountryCenter] = useState<THREE.Vector3 | null>(null);
+  const [zoomOffset, setZoomOffset] = useState<number>(1.0); // Dynamic zoom level
   const [isAnimating, setIsAnimating] = useState(false);
   
   const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
@@ -69,7 +95,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
     const borders: { name: string, points: THREE.Vector3[][], rawPoints: THREE.Vector3[] }[] = [];
 
     geoJson.features.forEach((feature: any) => {
-        const name = feature.properties.name || feature.properties.NAME;
+        // Try multiple properties for the name
+        const name = feature.properties.name || feature.properties.NAME || feature.properties.ADMIN || feature.properties.NAME_LONG;
         const geometry = feature.geometry;
 
         const processPolygon = (coords: any[]) => {
@@ -81,14 +108,14 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
         if (geometry.type === 'Polygon') {
              const polyPoints = geometry.coordinates.map(processPolygon);
              borders.push({
-                 name,
+                 name: name || 'Unknown',
                  points: polyPoints,
                  rawPoints: polyPoints.flat()
              });
         } else if (geometry.type === 'MultiPolygon') {
              const multiPoints = geometry.coordinates.map((polygon: any) => polygon.map(processPolygon));
              borders.push({
-                 name,
+                 name: name || 'Unknown',
                  points: multiPoints.flat(),
                  rawPoints: multiPoints.flat().flat()
              });
@@ -100,31 +127,81 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
   // React to selectedCountry prop changes to set center and trigger animation
   useEffect(() => {
     if (selectedCountry) {
+        let center: THREE.Vector3 | null = null;
+        let newZoom = 1.0;
+        const s = selectedCountry.toLowerCase();
+
+        // 1. Try to find center from Country Borders (GeoJSON)
         if (countryBorders.length > 0) {
-            // Find country case-insensitive and handle common abbreviations
             const countryData = countryBorders.find(c => {
                 const n = c.name.toLowerCase();
-                const s = selectedCountry.toLowerCase();
                 return n === s ||
-                       (s === 'usa' && n === 'united states of america') ||
-                       (s === 'uk' && n === 'united kingdom') ||
+                       (s === 'usa' && (n === 'united states' || n.includes('united states'))) ||
+                       (s === 'uk' && (n === 'united kingdom' || n === 'great britain')) ||
                        (s === 'uae' && n.includes('arab emirates'));
             });
             
             if (countryData && countryData.rawPoints.length > 0) {
-                 const center = new THREE.Vector3();
-                 countryData.rawPoints.forEach(p => center.add(p));
-                 center.divideScalar(countryData.rawPoints.length);
-                 setSelectedCountryCenter(center);
-                 setIsAnimating(true);
+                 const c = new THREE.Vector3();
+                 countryData.rawPoints.forEach(p => c.add(p));
+                 c.divideScalar(countryData.rawPoints.length);
+                 
+                 // Project to surface for accurate distance calculation
+                 const surfaceCenter = c.clone().normalize().multiplyScalar(GLOBE_RADIUS);
+                 center = surfaceCenter;
+
+                 // Calculate bounding radius (max distance from center to any point in the country)
+                 let maxDist = 0;
+                 countryData.rawPoints.forEach(p => {
+                    const d = p.distanceTo(surfaceCenter);
+                    if (d > maxDist) maxDist = d;
+                 });
+                 
+                 // Heuristic: scale zoom based on country size.
+                 // Small countries (Rwanda) -> small maxDist -> close zoom (small offset).
+                 // Minimum offset of 0.35 ensures we don't clip into the surface.
+                 newZoom = Math.max(0.35, maxDist * 2.2);
             }
+        }
+
+        // 2. Fallback: Calculate center from Borrowers in that country if map data missing
+        if (!center) {
+            const countryBorrowers = borrowers.filter(b => b.location.country.toLowerCase() === s);
+            if (countryBorrowers.length > 0) {
+                 const c = new THREE.Vector3();
+                 countryBorrowers.forEach(b => {
+                     const pos = latLngToVector3(b.location.lat, b.location.lng, GLOBE_RADIUS);
+                     c.add(pos);
+                 });
+                 c.divideScalar(countryBorrowers.length);
+                 
+                 const surfaceCenter = c.clone().normalize().multiplyScalar(GLOBE_RADIUS);
+                 center = surfaceCenter;
+
+                 // Bounds based on borrowers
+                 let maxDist = 0;
+                 countryBorrowers.forEach(b => {
+                     const pos = latLngToVector3(b.location.lat, b.location.lng, GLOBE_RADIUS);
+                     const d = pos.distanceTo(surfaceCenter);
+                     if (d > maxDist) maxDist = d;
+                 });
+                 
+                 // Tighter zoom for point clusters
+                 newZoom = Math.max(0.3, maxDist * 2.5);
+            }
+        }
+
+        if (center) {
+             setSelectedCountryCenter(center);
+             setZoomOffset(newZoom);
+             setIsAnimating(true);
         }
     } else {
         setSelectedCountryCenter(null);
-        // Trigger animation to reset view on deselect
+        // Reset isn't strictly necessary as logic handles null, but good for cleanup
         setIsAnimating(true);
     }
-  }, [selectedCountry, countryBorders]);
+  }, [selectedCountry, countryBorders, borrowers]);
 
   // Animation Loop
   useFrame((state, delta) => {
@@ -144,8 +221,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
           // 1. Calculate ideal camera position: Directly above the center point
           const direction = selectedCountryCenter.clone().normalize();
           
-          // Zoom closer: Radius (2.5) + Height (0.8) = 3.3. Standard view is usually 6-10.
-          const zoomDistance = GLOBE_RADIUS + 0.8; 
+          // Apply calculated zoom offset
+          const zoomDistance = GLOBE_RADIUS + zoomOffset; 
           targetPos = direction.clone().multiplyScalar(zoomDistance); 
           targetLookAt = selectedCountryCenter;
       } else {
@@ -160,6 +237,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       }
 
       // Smoothly interpolate
+      // Using a slightly faster lerp for responsiveness
       camera.position.lerp(targetPos, 0.08);
       orbitControls.target.lerp(targetLookAt, 0.08);
       orbitControls.update();
@@ -192,7 +270,7 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
 
       for (const feature of geoJson.features) {
           const geometry = feature.geometry;
-          const name = feature.properties.name || feature.properties.NAME;
+          const name = feature.properties.name || feature.properties.NAME || feature.properties.ADMIN;
           
           if (geometry.type === 'Polygon') {
                if (isPointInPolygon([lng, lat], geometry.coordinates[0])) {
@@ -214,18 +292,10 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       const foundCountry = getCountryAtPoint(e.point);
 
       if (foundCountry) {
-          // Map inconsistent naming if necessary, though getCountryAtPoint returns GeoJSON name
-          // We rely on App to handle selectedCountry string matching
           if (foundCountry === selectedCountry) {
             onSelectCountry(null); // Deselect
           } else {
-            // Try to map back to our simpler names if needed, or just pass the full name
-            // For now passing full name from GeoJSON is fine, App will need to handle it.
-            // But wait, our `borrowers` have simple names like "USA".
-            // If we click "United States", selectedCountry becomes "United States".
-            // Then logic in App needs to match.
-            // Let's implement a reverse lookup? Or just let user click.
-            // For consistency, let's just pass what we found.
+            // Pass the found country. The logic in useEffect will handle center calculation.
             onSelectCountry(foundCountry); 
           }
       } else {
@@ -278,8 +348,8 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
          const n = country.name.toLowerCase();
          const s = selectedCountry ? selectedCountry.toLowerCase() : '';
          const isSelected = n === s || 
-              (s === 'usa' && n === 'united states of america') ||
-              (s === 'uk' && n === 'united kingdom') ||
+              (s === 'usa' && n.includes('united states')) ||
+              (s === 'uk' && (n === 'united kingdom' || n === 'great britain')) ||
               (s === 'uae' && n.includes('arab emirates'));
 
          return (
@@ -379,29 +449,4 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       ))}
     </group>
   );
-};
-
-// Extracted Line component to handle its own animation state
-const CountryLine = ({ points, isSelected }: { points: THREE.Vector3[], isSelected: boolean }) => {
-    const [pulse, setPulse] = useState(0);
-    
-    useFrame((state, delta) => {
-        if (isSelected) {
-            setPulse(prev => prev + delta * 5);
-        }
-    });
-
-    const opacity = isSelected ? 0.8 + Math.sin(pulse) * 0.2 : 0.1;
-    const width = isSelected ? 4 : 1;
-    const color = isSelected ? "#4ade80" : "#64748b"; // emerald-400 vs slate-500
-
-    return (
-        <Line
-            points={points}
-            color={color}
-            lineWidth={width}
-            transparent
-            opacity={opacity}
-        />
-    );
 };
