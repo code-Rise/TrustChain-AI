@@ -9,6 +9,7 @@ interface GlobeProps {
   onSelectBorrower: (b: Borrower | null) => void;
   selectedCountry: string | null;
   onSelectCountry: (country: string | null) => void;
+  data: any; // geoJson
 }
 
 const GLOBE_RADIUS = 2.5;
@@ -45,7 +46,7 @@ const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
     return inside;
 };
 
-export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selectedCountry, onSelectCountry }) => {
+export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selectedCountry, onSelectCountry, data: geoJson }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   
@@ -53,21 +54,13 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<THREE.Vector3 | null>(null);
 
-  const [geoJson, setGeoJson] = useState<any>(null);
   const [selectedCountryCenter, setSelectedCountryCenter] = useState<THREE.Vector3 | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   
   const { camera, controls } = useThree(); // Access camera and controls (OrbitControls needs makeDefault in App)
   
   // Load Earth Texture (Blue Marble / Satellite View)
   const earthMap = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
-
-  // Fetch GeoJSON for country borders
-  useEffect(() => {
-    fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson')
-      .then(res => res.json())
-      .then(data => setGeoJson(data))
-      .catch(err => console.error("Failed to load country data", err));
-  }, []);
 
   // Process GeoJSON into 3D Lines
   const countryBorders = useMemo(() => {
@@ -104,20 +97,32 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
     return borders;
   }, [geoJson]);
 
-  // React to selectedCountry prop changes
+  // React to selectedCountry prop changes to set center and trigger animation
   useEffect(() => {
-    if (selectedCountry && countryBorders.length > 0) {
-        // Find country case-insensitive
-        const countryData = countryBorders.find(c => c.name.toLowerCase() === selectedCountry.toLowerCase());
-        
-        if (countryData && countryData.rawPoints.length > 0) {
-             const center = new THREE.Vector3();
-             countryData.rawPoints.forEach(p => center.add(p));
-             center.divideScalar(countryData.rawPoints.length);
-             setSelectedCountryCenter(center);
+    if (selectedCountry) {
+        if (countryBorders.length > 0) {
+            // Find country case-insensitive and handle common abbreviations
+            const countryData = countryBorders.find(c => {
+                const n = c.name.toLowerCase();
+                const s = selectedCountry.toLowerCase();
+                return n === s ||
+                       (s === 'usa' && n === 'united states of america') ||
+                       (s === 'uk' && n === 'united kingdom') ||
+                       (s === 'uae' && n.includes('arab emirates'));
+            });
+            
+            if (countryData && countryData.rawPoints.length > 0) {
+                 const center = new THREE.Vector3();
+                 countryData.rawPoints.forEach(p => center.add(p));
+                 center.divideScalar(countryData.rawPoints.length);
+                 setSelectedCountryCenter(center);
+                 setIsAnimating(true);
+            }
         }
     } else {
         setSelectedCountryCenter(null);
+        // Trigger animation to reset view on deselect
+        setIsAnimating(true);
     }
   }, [selectedCountry, countryBorders]);
 
@@ -129,22 +134,40 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
     }
 
     // Zoom & Focus Logic
-    if (selectedCountry && selectedCountryCenter && controls) {
-      // 1. Calculate ideal camera position: Directly above the center point
-      const direction = selectedCountryCenter.clone().normalize();
-      
-      // Zoom closer: Radius (2.5) + Height (0.8) = 3.3. Standard view is usually 6-10.
-      const zoomDistance = GLOBE_RADIUS + 0.8; 
-      const targetPos = direction.clone().multiplyScalar(zoomDistance); 
-      
-      // 2. Smoothly move camera
-      camera.position.lerp(targetPos, 0.08);
-
-      // 3. Smoothly move controls target (look at point)
+    if (isAnimating && controls) {
       const orbitControls = controls as any;
-      if (orbitControls.target) {
-        orbitControls.target.lerp(selectedCountryCenter, 0.08);
-        orbitControls.update();
+      let targetPos: THREE.Vector3;
+      let targetLookAt: THREE.Vector3;
+      const stopDistanceThreshold = 0.05;
+
+      if (selectedCountry && selectedCountryCenter) {
+          // 1. Calculate ideal camera position: Directly above the center point
+          const direction = selectedCountryCenter.clone().normalize();
+          
+          // Zoom closer: Radius (2.5) + Height (0.8) = 3.3. Standard view is usually 6-10.
+          const zoomDistance = GLOBE_RADIUS + 0.8; 
+          targetPos = direction.clone().multiplyScalar(zoomDistance); 
+          targetLookAt = selectedCountryCenter;
+      } else {
+          // Reset to global view
+          targetLookAt = new THREE.Vector3(0, 0, 0);
+          // If camera is too close, pull it back to a default distance
+          if (camera.position.length() < 6) {
+             targetPos = camera.position.clone().normalize().multiplyScalar(6);
+          } else {
+             targetPos = camera.position.clone();
+          }
+      }
+
+      // Smoothly interpolate
+      camera.position.lerp(targetPos, 0.08);
+      orbitControls.target.lerp(targetLookAt, 0.08);
+      orbitControls.update();
+
+      // Check if we reached the target
+      if (camera.position.distanceTo(targetPos) < stopDistanceThreshold && 
+          orbitControls.target.distanceTo(targetLookAt) < stopDistanceThreshold) {
+          setIsAnimating(false);
       }
     }
   });
@@ -191,10 +214,19 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
       const foundCountry = getCountryAtPoint(e.point);
 
       if (foundCountry) {
+          // Map inconsistent naming if necessary, though getCountryAtPoint returns GeoJSON name
+          // We rely on App to handle selectedCountry string matching
           if (foundCountry === selectedCountry) {
             onSelectCountry(null); // Deselect
           } else {
-            onSelectCountry(foundCountry); // Select
+            // Try to map back to our simpler names if needed, or just pass the full name
+            // For now passing full name from GeoJSON is fine, App will need to handle it.
+            // But wait, our `borrowers` have simple names like "USA".
+            // If we click "United States", selectedCountry becomes "United States".
+            // Then logic in App needs to match.
+            // Let's implement a reverse lookup? Or just let user click.
+            // For consistency, let's just pass what we found.
+            onSelectCountry(foundCountry); 
           }
       } else {
           onSelectCountry(null); // Deselect if clicked on ocean
@@ -242,7 +274,14 @@ export const Globe: React.FC<GlobeProps> = ({ borrowers, onSelectBorrower, selec
 
       {/* Country Borders */}
       {countryBorders.map((country, i) => {
-         const isSelected = country.name === selectedCountry;
+         // Match logic
+         const n = country.name.toLowerCase();
+         const s = selectedCountry ? selectedCountry.toLowerCase() : '';
+         const isSelected = n === s || 
+              (s === 'usa' && n === 'united states of america') ||
+              (s === 'uk' && n === 'united kingdom') ||
+              (s === 'uae' && n.includes('arab emirates'));
+
          return (
              <group key={`${country.name}-${i}`}>
                  {country.points.map((linePoints, j) => {

@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, Environment } from '@react-three/drei';
 import { Globe } from './components/Globe';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
+import { CountryMap } from './components/CountryMap';
 import { MOCK_BORROWERS } from './utils/data';
 import { Borrower } from './types';
 import { 
@@ -14,7 +15,8 @@ import {
   Search,
   Menu,
   X,
-  MapPin
+  MapPin,
+  Map as MapIcon
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -22,6 +24,7 @@ const App: React.FC = () => {
   const [borrowers] = useState<Borrower[]>(MOCK_BORROWERS);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
+  const [geoJson, setGeoJson] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
   // Search State
@@ -42,6 +45,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
+    // Fetch GeoJSON once at App level
+    fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson')
+      .then(res => res.json())
+      .then(data => setGeoJson(data))
+      .catch(err => console.error("Failed to load country data", err));
   }, []);
 
   if (!mounted) return null;
@@ -70,6 +78,7 @@ const App: React.FC = () => {
               onSelectBorrower={setSelectedBorrower} 
               selectedCountry={selectedCountryName}
               onSelectCountry={setSelectedCountryName}
+              data={geoJson}
             />
             
             <OrbitControls 
@@ -135,7 +144,7 @@ const App: React.FC = () => {
         </button>
       </header>
 
-      {/* Left Panel - Global Overview */}
+      {/* Left Panel - Global Overview or Country Detail */}
       <aside className={`absolute top-24 left-6 w-80 max-h-[calc(100vh-140px)] flex flex-col gap-4 z-10 transition-transform duration-500 ${showMobileMenu ? 'translate-x-0' : '-translate-x-[120%] md:translate-x-0'}`}>
         
         {/* Search Panel */}
@@ -169,7 +178,7 @@ const App: React.FC = () => {
                     className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-emerald-500/20 hover:text-emerald-400 flex items-center gap-2 transition-colors"
                     onClick={() => {
                       setSelectedCountryName(country);
-                      setSearchTerm(''); // Clear search logic or keep it? Let's clear it to show we navigated.
+                      setSearchTerm(''); 
                     }}
                    >
                      <MapPin className="w-3 h-3" />
@@ -183,24 +192,45 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Risk Distribution Chart Panel */}
-        <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10">
-          <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-            <Globe2 className="w-4 h-4 text-emerald-500" /> Regional Risk Mix
-          </h3>
-          <div className="flex-1 w-full -ml-2">
-             <CreditMixChart data={borrowers} />
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-800">
-            <div className="flex justify-between text-xs text-slate-400">
-               <span>Algorithm v2.4 Active</span>
-               <span className="text-emerald-500 flex items-center gap-1">
-                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                 Live
-               </span>
+        {/* Dynamic Panel: Shows Risk Mix globally, OR Map when country selected */}
+        {selectedCountryName ? (
+           <div className="pointer-events-auto">
+             <div className="flex items-center justify-between mb-2">
+                 <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
+                    <MapIcon className="w-4 h-4 text-emerald-500" /> {selectedCountryName} Map
+                 </h3>
+                 <button 
+                   onClick={() => setSelectedCountryName(null)}
+                   className="text-xs text-slate-500 hover:text-white flex items-center gap-1"
+                 >
+                   <X className="w-3 h-3" /> Global View
+                 </button>
+             </div>
+             <CountryMap 
+               countryName={selectedCountryName} 
+               geoJson={geoJson} 
+               borrowers={borrowers.filter(b => b.location.country === selectedCountryName)}
+             />
+           </div>
+        ) : (
+          <div className="flex-1 min-h-[250px] bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto flex flex-col z-10">
+            <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
+              <Globe2 className="w-4 h-4 text-emerald-500" /> Regional Risk Mix
+            </h3>
+            <div className="flex-1 w-full -ml-2">
+               <CreditMixChart data={borrowers} />
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-800">
+              <div className="flex justify-between text-xs text-slate-400">
+                 <span>Algorithm v2.4 Active</span>
+                 <span className="text-emerald-500 flex items-center gap-1">
+                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                   Live
+                 </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Right Panel - Borrower Detail (Shows when selected) */}
@@ -283,7 +313,7 @@ const App: React.FC = () => {
         <div className="text-right pointer-events-auto">
           <p className="text-[10px] text-slate-600">
              © 2026 SENTINEL RISK SYSTEMS<br/>
-             POWERED BY ML        
+             POWERED BY CodeRise        
           </p>
         </div>
       </footer>
