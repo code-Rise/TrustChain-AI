@@ -223,32 +223,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Desktop Stats Ticker */}
-        <div className="hidden md:flex items-center gap-8 pointer-events-auto bg-slate-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700/50">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-slate-400" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 uppercase">Total Active</span>
-              <span className="font-mono font-bold text-sm">{totalUsers.toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="w-px h-6 bg-slate-700/50"></div>
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-cyan-400" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 uppercase">Avg Score</span>
-              <span className="font-mono font-bold text-sm text-cyan-400">{avgScore}</span>
-            </div>
-          </div>
-          <div className="w-px h-6 bg-slate-700/50"></div>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 uppercase">High Risk</span>
-              <span className="font-mono font-bold text-sm text-red-400">{highRiskCount}</span>
-            </div>
-          </div>
-        </div>
+
 
         {/* Mobile Menu Toggle */}
         <button
@@ -428,7 +403,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* Right Panel - Borrower Detail OR Global/Regional Report */}
-      <aside className={`absolute top-24 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
+      <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
         {!selectedBorrower ? (
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
             {(() => {
@@ -684,6 +659,70 @@ const App: React.FC = () => {
           />
         ))}
       </div>
+        {/* Bottom Center Compact Stats Bar */}
+<div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
+  <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
+
+    {/* TA */}
+    <div className="relative group flex items-center gap-2">
+      <Users className="w-4 h-4 text-slate-400" />
+      <div className="flex items-baseline gap-2">
+        <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
+        <span className="font-mono font-bold text-sm text-white">
+          {totalUsers.toLocaleString()}
+        </span>
+      </div>
+
+      {/* Tooltip */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+          Total Active
+        </div>
+      </div>
+    </div>
+
+    <div className="w-px h-6 bg-slate-700/50" />
+
+    {/* AS */}
+    <div className="relative group flex items-center gap-2">
+      <Activity className="w-4 h-4 text-cyan-400" />
+      <div className="flex items-baseline gap-2">
+        <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
+        <span className="font-mono font-bold text-sm text-cyan-400">
+          {avgScore}
+        </span>
+      </div>
+
+      {/* Tooltip */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+          Average Score
+        </div>
+      </div>
+    </div>
+
+    <div className="w-px h-6 bg-slate-700/50" />
+
+    {/* HR */}
+    <div className="relative group flex items-center gap-2">
+      <AlertTriangle className="w-4 h-4 text-red-400" />
+      <div className="flex items-baseline gap-2">
+        <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
+        <span className="font-mono font-bold text-sm text-red-400">
+          {highRiskCount}
+        </span>
+      </div>
+
+      {/* Tooltip */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+          High Risk
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
       {/* Footer / System Status */}
       <footer className="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">
