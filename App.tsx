@@ -18,7 +18,11 @@ import {
   AlertTriangle,
   X,
   Menu,
-  Search
+  Search,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Upload
 } from 'lucide-react';
 import { Modal } from './components/Modal';
 import { Toast, ToastType } from './components/Toast';
@@ -39,6 +43,71 @@ const App: React.FC = () => {
     const id = Math.random().toString(36).substring(7);
     setToasts(prev => [...prev, { id, message, type }]);
   };
+  // Add User Wizard State
+const [showAddUserWizard, setShowAddUserWizard] = useState(false);
+const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
+
+const [addUserData, setAddUserData] = useState({
+  fullNameOrBusiness: '',
+  entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
+  country: '',
+  city: '',
+
+  monthlyIncomeOrRevenue: '',
+  mobileMoneyUsage: '',
+  repaymentHistory: '',
+  requestedCreditLimit: ''
+});
+
+const [addUserFiles, setAddUserFiles] = useState({
+  repaymentProof: null as File | null,
+  momoStatements: null as File | null,
+  otherDocs: null as File | null
+});
+
+const [addUserConfirmTruth, setAddUserConfirmTruth] = useState(false);
+
+const resetAddUserWizard = () => {
+  setShowAddUserWizard(false);
+  setAddUserStep(1);
+  setAddUserData({
+    fullNameOrBusiness: '',
+    entityType: '',
+    country: '',
+    city: '',
+    monthlyIncomeOrRevenue: '',
+    mobileMoneyUsage: '',
+    repaymentHistory: '',
+    requestedCreditLimit: ''
+  });
+  setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
+  setAddUserConfirmTruth(false);
+};
+
+// Validation
+const isStep1Valid =
+  addUserData.fullNameOrBusiness.trim().length > 0 &&
+  addUserData.entityType !== '' &&
+  addUserData.country.trim().length > 0 &&
+  addUserData.city.trim().length > 0;
+
+const isStep2Valid = (() => {
+  const rh = Number(addUserData.repaymentHistory);
+  return (
+    addUserData.monthlyIncomeOrRevenue.trim().length > 0 &&
+    addUserData.mobileMoneyUsage.trim().length > 0 &&
+    addUserData.repaymentHistory.trim().length > 0 &&
+    !Number.isNaN(rh) &&
+    rh >= 0 &&
+    rh <= 100 &&
+    addUserData.requestedCreditLimit.trim().length > 0
+  );
+})();
+
+const isStep3Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
+
+const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirmTruth;
+
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -223,32 +292,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Desktop Stats Ticker */}
-        <div className="hidden md:flex items-center gap-8 pointer-events-auto bg-slate-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700/50">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-slate-400" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 uppercase">Total Active</span>
-              <span className="font-mono font-bold text-sm">{totalUsers.toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="w-px h-6 bg-slate-700/50"></div>
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-cyan-400" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 uppercase">Avg Score</span>
-              <span className="font-mono font-bold text-sm text-cyan-400">{avgScore}</span>
-            </div>
-          </div>
-          <div className="w-px h-6 bg-slate-700/50"></div>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 uppercase">High Risk</span>
-              <span className="font-mono font-bold text-sm text-red-400">{highRiskCount}</span>
-            </div>
-          </div>
-        </div>
+
 
         {/* Mobile Menu Toggle */}
         <button
@@ -428,11 +472,12 @@ const App: React.FC = () => {
       </aside>
 
       {/* Right Panel - Borrower Detail OR Global/Regional Report */}
-      <aside className={`absolute top-24 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
+      <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
         {!selectedBorrower ? (
-          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
+          <div className={`${showAddUserWizard ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-900/80 text-white border-slate-800'} backdrop-blur-md border rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500`}>
+
             {(() => {
-              // If country selected but no regional stats (no borrowers), show empty state
+// If country selected but no regional stats (no borrowers), show empty state
               if (selectedCountryName && !regionalStats) {
                 return (
                   <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
@@ -452,51 +497,309 @@ const App: React.FC = () => {
 
               return (
                 <>
-                  <h3 className="font-tech text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-500" /> {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
-                  </h3>
+                  
+             <div className="flex items-center justify-between mb-4">
+                <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-500" />
+                  {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
+                </h3>
 
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                      <div className="font-mono text-emerald-400 font-bold text-lg">
-                        ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
-                    </div>
-                    <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
-                      <div className="font-mono text-red-400 font-bold text-lg">
-                        {stats.highestRisk?.creditScore || '-'}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
-                    </div>
-                  </div>
+                {/* Add User Button (only on Global mode) */}
+                {!selectedCountryName && (
+                  <button
+                    onClick={() => {
+                      setShowAddUserWizard(true);
+                      setAddUserStep(1);
+                    }}
+                    className="w-9 h-9 flex items-center justify-center rounded-full
+                              bg-slate-800/80 border border-slate-700
+                              hover:bg-slate-700 transition-all
+                              shadow-md hover:shadow-lg"
+                    title="Add user"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.6}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
+                    </svg>
+                  </button>
+                )}
+              </div>
 
-                  <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
-                    {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
-                  </h4>
-                  <div className="space-y-2">
-                    {stats.topRisky.map(b => (
-                      <div
-                        key={b.id}
-                        onClick={() => setSelectedBorrower(b)}
-                        className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
-                          <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
+                {/* Adding a USER */}
+              {showAddUserWizard ? (
+              <div className="w-full h-full">
+                {/* Top stepper */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    {/* Step circles: 1..4 */}
+                    {[
+                      { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
+                      { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
+                      { n: 3, label: 'Docs', done: isStep3Valid },
+                      { n: 4, label: 'Confirm', done: canSubmit }
+                    ].map((s, idx, arr) => (
+                      <div key={s.n} className="flex items-center">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
+                            s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-600 border-slate-300'
+                          }`}
+                          title={s.label}
+                        >
+                          {s.n}
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
-                          <div className="text-[10px] text-slate-600">SCORE</div>
-                        </div>
+                        {idx < arr.length - 1 && (
+                          <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                        )}
                       </div>
                     ))}
-                    {stats.topRisky.length === 0 && (
-                      <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
-                    )}
                   </div>
+
+                  {/* Close */}
+                  <button
+                    onClick={resetAddUserWizard}
+                    className="text-slate-500 hover:text-slate-900 transition-colors"
+                    title="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Step content */}
+                {addUserStep === 1 && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Full Name / Business Name</label>
+                      <input
+                        value={addUserData.fullNameOrBusiness}
+                        onChange={(e) => setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Entity Type</label>
+                      <select
+                        value={addUserData.entityType}
+                        onChange={(e) => setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }))}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      >
+                        <option value="">Select…</option>
+                        <option value="Individual">Individual</option>
+                        <option value="SME">SME</option>
+                        <option value="Corporation">Corporation</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Country</label>
+                        <input
+                          value={addUserData.country}
+                          onChange={(e) => setAddUserData(prev => ({ ...prev, country: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          placeholder="e.g. Rwanda"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">City</label>
+                        <input
+                          value={addUserData.city}
+                          onChange={(e) => setAddUserData(prev => ({ ...prev, city: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          placeholder="e.g. Kigali"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {addUserStep === 2 && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Monthly Income / Business Revenue</label>
+                      <input
+                        value={addUserData.monthlyIncomeOrRevenue}
+                        onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="e.g. 1,200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Mobile Money Usage / Month</label>
+                      <input
+                        value={addUserData.mobileMoneyUsage}
+                        onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="e.g. 400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Repayment History (%)</label>
+                      <input
+                        value={addUserData.repaymentHistory}
+                        onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="0 - 100"
+                      />
+                      <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Requested Credit Limit</label>
+                      <input
+                        value={addUserData.requestedCreditLimit}
+                        onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="e.g. 5,000"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {addUserStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Upload className="w-4 h-4" /> Upload Documents
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Repayment history proof (required)</label>
+                        <input
+                          type="file"
+                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }))}
+                          className="mt-1 w-full text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">MoMo statements (required)</label>
+                        <input
+                          type="file"
+                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }))}
+                          className="mt-1 w-full text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Other supporting documents (optional)</label>
+                        <input
+                          type="file"
+                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
+                          className="mt-1 w-full text-sm"
+                        />
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200">
+                        <label className="flex items-start gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={addUserConfirmTruth}
+                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                            className="mt-1"
+                          />
+                          <span>I confirm that all the information provided is true and complete.</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                        {/* Navigation */}
+                        <div className="mt-5 flex items-center justify-between">
+                          <button
+                            onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
+                            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:hover:text-slate-600"
+                            disabled={addUserStep === 1}
+                          >
+                            <ChevronLeft className="w-4 h-4" /> Previous
+                          </button>
+
+                          {addUserStep < 3 ? (
+                            <button
+                              onClick={() => {
+                                if (addUserStep === 1 && !isStep1Valid) return;
+                                if (addUserStep === 2 && !isStep2Valid) return;
+                                setAddUserStep(prev => (prev + 1) as any);
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+                            >
+                              Next <ChevronRight className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (!canSubmit) return;
+                                addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
+                                resetAddUserWizard();
+                              }}
+                              disabled={!canSubmit}
+                              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                                canSubmit
+                                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                                  : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
+                              }`}
+                            >
+                              Submit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Initially Existing report UI AS IT WAS  */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                            <div className="font-mono text-emerald-400 font-bold text-lg">
+                              ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
+                          </div>
+                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                            <div className="font-mono text-red-400 font-bold text-lg">
+                              {stats.highestRisk?.creditScore || '-'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
+                          </div>
+                        </div>
+
+                        <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
+                          {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
+                        </h4>
+                        <div className="space-y-2">
+                          {stats.topRisky.map(b => (
+                            <div
+                              key={b.id}
+                              onClick={() => setSelectedBorrower(b)}
+                              className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
+                            >
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
+                                <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
+                                <div className="text-[10px] text-slate-600">SCORE</div>
+                              </div>
+                            </div>
+                          ))}
+                          {stats.topRisky.length === 0 && (
+                            <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
+                          )}
+                        </div>
+                      </>
+                    )}
                 </>
               );
             })()}
@@ -684,6 +987,70 @@ const App: React.FC = () => {
           />
         ))}
       </div>
+        {/* Bottom Center Compact Stats Bar */}
+<div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
+  <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
+
+    {/* TA */}
+    <div className="relative group flex items-center gap-2">
+      <Users className="w-4 h-4 text-slate-400" />
+      <div className="flex items-baseline gap-2">
+        <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
+        <span className="font-mono font-bold text-sm text-white">
+          {totalUsers.toLocaleString()}
+        </span>
+      </div>
+
+      {/* Tooltip */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+          Total Active
+        </div>
+      </div>
+    </div>
+
+    <div className="w-px h-6 bg-slate-700/50" />
+
+    {/* AS */}
+    <div className="relative group flex items-center gap-2">
+      <Activity className="w-4 h-4 text-cyan-400" />
+      <div className="flex items-baseline gap-2">
+        <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
+        <span className="font-mono font-bold text-sm text-cyan-400">
+          {avgScore}
+        </span>
+      </div>
+
+      {/* Tooltip */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+          Average Score
+        </div>
+      </div>
+    </div>
+
+    <div className="w-px h-6 bg-slate-700/50" />
+
+    {/* HR */}
+    <div className="relative group flex items-center gap-2">
+      <AlertTriangle className="w-4 h-4 text-red-400" />
+      <div className="flex items-baseline gap-2">
+        <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
+        <span className="font-mono font-bold text-sm text-red-400">
+          {highRiskCount}
+        </span>
+      </div>
+
+      {/* Tooltip */}
+      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+          High Risk
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
       {/* Footer / System Status */}
       <footer className="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">
