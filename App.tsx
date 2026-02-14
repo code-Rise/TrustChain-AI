@@ -533,7 +533,7 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
 
                 {/* Adding a USER */}
               {showAddUserWizard ? (
-              <div className="bg-white text-slate-900 rounded-xl border border-slate-200 p-4">
+              <div className="w-full h-full">
                 {/* Top stepper */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -800,32 +800,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                         </div>
                       </>
                     )}
-
-
-                  <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
-                    {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
-                  </h4>
-                  <div className="space-y-2">
-                    {stats.topRisky.map(b => (
-                      <div
-                        key={b.id}
-                        onClick={() => setSelectedBorrower(b)}
-                        className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
-                          <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
-                          <div className="text-[10px] text-slate-600">SCORE</div>
-                        </div>
-                      </div>
-                    ))}
-                    {stats.topRisky.length === 0 && (
-                      <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
-                    )}
-                  </div>
                 </>
               );
             })()}
