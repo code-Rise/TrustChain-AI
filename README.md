@@ -2,11 +2,33 @@
 
 A simple FastAPI service that predicts **Probability of Default (PD)**, converts it into a **credit score (300–850 scale)**, and assigns a **risk level**.
 
-## 1. Install Dependencies
+## 1. Install Pipenv (if not installed)
 
 ```bash
-pip install fastapi uvicorn pandas scikit-learn joblib numpy
+pip install pipenv
 ```
+
+
+## 2. Create Virtual Environment
+
+From inside the project root (`credit_scoring_backend/`):
+
+```bash
+pipenv install fastapi uvicorn pandas scikit-learn joblib numpy
+```
+
+This will:
+- Create a virtual environment
+- Generate `Pipfile`
+- Generate `Pipfile.lock`
+
+## 3. Activate Virtual Environment
+
+```bash
+pipenv shell
+```
+
+You should now see the virtual environment active in your terminal.
 
 ## 2. Train the Model
 
