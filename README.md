@@ -2,15 +2,11 @@
 
 A simple FastAPI service that predicts **Probability of Default (PD)**, converts it into a **credit score (300–850 scale)**, and assigns a **risk level**.
 
----
-
 ## 1. Install Dependencies
 
 ```bash
 pip install fastapi uvicorn pandas scikit-learn joblib numpy
 ```
-
----
 
 ## 2. Train the Model
 
@@ -35,12 +31,10 @@ This will:
 models/credit_model.pkl
 ```
 
----
-
 ## 3. Run the API
 
 ```bash
-uvicorn app:app --reload
+uvicorn main:app --reload
 ```
 
 API base URL:
@@ -54,8 +48,6 @@ Interactive documentation:
 ```
 http://127.0.0.1:8000/docs
 ```
-
----
 
 ## 4. Endpoint
 
@@ -83,7 +75,6 @@ http://127.0.0.1:8000/docs
 }
 ```
 
----
 
 ## Credit Score Logic
 
@@ -96,7 +87,6 @@ Risk Levels:
 - Medium: 650–749
 - Low: 750+
 
----
 
 ## Project Structure
 
