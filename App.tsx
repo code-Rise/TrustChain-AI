@@ -988,7 +988,7 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
         ))}
       </div>
         {/* Bottom Center Compact Stats Bar */}
-<div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
+<div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
   <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
 
     {/* TA */}
