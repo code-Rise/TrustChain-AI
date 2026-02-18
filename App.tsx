@@ -22,7 +22,8 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  Upload
+  Upload,
+  Check
 } from 'lucide-react';
 import { Modal } from './components/Modal';
 import { Toast, ToastType } from './components/Toast';
@@ -43,128 +44,182 @@ const App: React.FC = () => {
     const id = Math.random().toString(36).substring(7);
     setToasts(prev => [...prev, { id, message, type }]);
   };
+  
   // Add User Wizard State
-const [showAddUserWizard, setShowAddUserWizard] = useState(false);
-const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
+  const [showAddUserWizard, setShowAddUserWizard] = useState(false);
+  const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
+  const [showSuccess, setShowSuccess] = useState(false); // for success screen
 
-const [addUserData, setAddUserData] = useState({
-  fullNameOrBusiness: '',
-  entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
-  country: '',
-  city: '',
-  monthlyIncomeOrRevenue: '',
-  mobileMoneyUsage: '',
-  repaymentHistory: '',
-  requestedCreditLimit: ''
-});
-
-const [addUserFiles, setAddUserFiles] = useState({
-  repaymentProof: null as File | null,
-  momoStatements: null as File | null,
-  otherDocs: null as File | null
-});
-
-const [addUserConfirmTruth, setAddUserConfirmTruth] = useState(false);
-
-const [addUserErrors, setAddUserErrors] = useState<{
-  step1: { [key: string]: string };
-  step2: { [key: string]: string };
-  step3: { [key: string]: string };
-}>({
-  step1: {},
-  step2: {},
-  step3: {},
-});
-
-// Validation helpers
-const validateStep1Field = (field: string, value: string): string => {
-  if (!value.trim()) return `${field} is required`;
-  return '';
-};
-
-const validateStep1 = () => {
-  const errors: { [key: string]: string } = {};
-  if (!addUserData.fullNameOrBusiness.trim()) errors.fullNameOrBusiness = 'Full name / business name is required';
-  if (!addUserData.entityType) errors.entityType = 'Entity type is required';
-  if (!addUserData.country.trim()) errors.country = 'Country is required';
-  if (!addUserData.city.trim()) errors.city = 'City is required';
-  setAddUserErrors(prev => ({ ...prev, step1: errors }));
-  return Object.keys(errors).length === 0;
-};
-
-const validateStep2Field = (field: string, value: string): string => {
-  if (!value.trim()) return `${field} is required`;
-  if (field === 'Repayment History') {
-    const num = Number(value);
-    if (Number.isNaN(num) || num < 0 || num > 100) return 'Must be a number between 0 and 100';
-  }
-  return '';
-};
-
-const validateStep2 = () => {
-  const errors: { [key: string]: string } = {};
-  if (!addUserData.monthlyIncomeOrRevenue.trim()) errors.monthlyIncomeOrRevenue = 'Monthly income / revenue is required';
-  if (!addUserData.mobileMoneyUsage.trim()) errors.mobileMoneyUsage = 'Mobile money usage is required';
-  if (!addUserData.repaymentHistory.trim()) errors.repaymentHistory = 'Repayment history is required';
-  else {
-    const num = Number(addUserData.repaymentHistory);
-    if (Number.isNaN(num) || num < 0 || num > 100) errors.repaymentHistory = 'Must be a number between 0 and 100';
-  }
-  if (!addUserData.requestedCreditLimit.trim()) errors.requestedCreditLimit = 'Requested credit limit is required';
-  setAddUserErrors(prev => ({ ...prev, step2: errors }));
-  return Object.keys(errors).length === 0;
-};
-
-const validateStep3 = () => {
-  const errors: { [key: string]: string } = {};
-  if (!addUserFiles.repaymentProof) errors.repaymentProof = 'Repayment history proof is required';
-  if (!addUserFiles.momoStatements) errors.momoStatements = 'MoMo statements are required';
-  setAddUserErrors(prev => ({ ...prev, step3: errors }));
-  return Object.keys(errors).length === 0;
-};
-
-const resetAddUserWizard = () => {
-  setShowAddUserWizard(false);
-  setAddUserStep(1);
-  setAddUserData({
+  const [addUserData, setAddUserData] = useState({
     fullNameOrBusiness: '',
-    entityType: '',
+    entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
     country: '',
     city: '',
+    email: '',
+    phone: '',
     monthlyIncomeOrRevenue: '',
-    mobileMoneyUsage: '',
     repaymentHistory: '',
-    requestedCreditLimit: ''
+    requestedCredit: '',
+    creditDate: ''
   });
-  setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
-  setAddUserConfirmTruth(false);
-  setAddUserErrors({ step1: {}, step2: {}, step3: {} });
-};
 
-// Validation
-const isStep1Valid =
-  addUserData.fullNameOrBusiness.trim().length > 0 &&
-  addUserData.entityType !== '' &&
-  addUserData.country.trim().length > 0 &&
-  addUserData.city.trim().length > 0;
+  const [addUserFiles, setAddUserFiles] = useState({
+    repaymentProof: null as File | null,
+    momoStatements: null as File | null,
+    bankStatement: null as File | null,
+    otherDocs: null as File | null
+  });
 
-const isStep2Valid = (() => {
-  const rh = Number(addUserData.repaymentHistory);
-  return (
-    addUserData.monthlyIncomeOrRevenue.trim().length > 0 &&
-    addUserData.mobileMoneyUsage.trim().length > 0 &&
-    addUserData.repaymentHistory.trim().length > 0 &&
-    !Number.isNaN(rh) &&
-    rh >= 0 &&
-    rh <= 100 &&
-    addUserData.requestedCreditLimit.trim().length > 0
-  );
-})();
+  const [addUserConfirmTruth, setAddUserConfirmTruth] = useState(false);
 
-const isStep3Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
+  const [addUserErrors, setAddUserErrors] = useState<{
+    step1: { [key: string]: string };
+    step2: { [key: string]: string };
+    step3: { [key: string]: string };
+  }>({
+    step1: {},
+    step2: {},
+    step3: {},
+  });
 
-const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirmTruth;
+  // Validation helpers
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
 
+  const validatePhone = (phone: string) => {
+    const re = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/; // simple international format
+    return re.test(phone);
+  };
+
+  const validateStep1Field = (field: string, value: string): string => {
+    if (!value.trim()) return `${field} is required`;
+    if (field === 'Email' && !validateEmail(value)) return 'Enter a valid email address';
+    if (field === 'Phone' && !validatePhone(value)) return 'Enter a valid phone number';
+    return '';
+  };
+
+  const validateStep1 = () => {
+    const errors: { [key: string]: string } = {};
+    if (!addUserData.fullNameOrBusiness.trim()) errors.fullNameOrBusiness = 'Full name / business name is required';
+    if (!addUserData.entityType) errors.entityType = 'Entity type is required';
+    if (!addUserData.country.trim()) errors.country = 'Country is required';
+    if (!addUserData.city.trim()) errors.city = 'City is required';
+    if (!addUserData.email.trim()) errors.email = 'Email is required';
+    else if (!validateEmail(addUserData.email)) errors.email = 'Enter a valid email address';
+    if (!addUserData.phone.trim()) errors.phone = 'Phone number is required';
+    else if (!validatePhone(addUserData.phone)) errors.phone = 'Enter a valid phone number';
+    setAddUserErrors(prev => ({ ...prev, step1: errors }));
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep2Field = (field: string, value: string): string => {
+    if (!value.trim()) return `${field} is required`;
+    if (field === 'Monthly Income / Revenue' || field === 'Requested Credit') {
+      const num = Number(value);
+      if (Number.isNaN(num) || num <= 0) return 'Must be a positive number';
+    }
+    if (field === 'Repayment History') {
+      const num = Number(value);
+      if (Number.isNaN(num) || num < 0 || num > 100) return 'Must be a number between 0 and 100';
+    }
+    if (field === 'Credit Date') {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return 'Enter a valid date';
+    }
+    return '';
+  };
+
+  const validateStep2 = () => {
+    const errors: { [key: string]: string } = {};
+    if (!addUserData.monthlyIncomeOrRevenue.trim()) errors.monthlyIncomeOrRevenue = 'Monthly income / revenue is required';
+    else {
+      const num = Number(addUserData.monthlyIncomeOrRevenue);
+      if (Number.isNaN(num) || num <= 0) errors.monthlyIncomeOrRevenue = 'Must be a positive number';
+    }
+    if (!addUserData.repaymentHistory.trim()) errors.repaymentHistory = 'Repayment history is required';
+    else {
+      const num = Number(addUserData.repaymentHistory);
+      if (Number.isNaN(num) || num < 0 || num > 100) errors.repaymentHistory = 'Must be a number between 0 and 100';
+    }
+    if (!addUserData.requestedCredit.trim()) errors.requestedCredit = 'Requested credit is required';
+    else {
+      const num = Number(addUserData.requestedCredit);
+      if (Number.isNaN(num) || num <= 0) errors.requestedCredit = 'Must be a positive number';
+    }
+    if (!addUserData.creditDate.trim()) errors.creditDate = 'Credit date is required';
+    else {
+      const date = new Date(addUserData.creditDate);
+      if (isNaN(date.getTime())) errors.creditDate = 'Enter a valid date';
+    }
+    setAddUserErrors(prev => ({ ...prev, step2: errors }));
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep3 = () => {
+    const errors: { [key: string]: string } = {};
+    if (!addUserFiles.repaymentProof) errors.repaymentProof = 'Repayment history proof is required';
+    if (!addUserFiles.momoStatements) errors.momoStatements = 'MoMo statements are required';
+    if (!addUserFiles.bankStatement) errors.bankStatement = 'Bank statement is required';
+    // otherDocs is optional
+    setAddUserErrors(prev => ({ ...prev, step3: errors }));
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetAddUserWizard = () => {
+    setShowAddUserWizard(false);
+    setAddUserStep(1);
+    setShowSuccess(false);
+    setAddUserData({
+      fullNameOrBusiness: '',
+      entityType: '',
+      country: '',
+      city: '',
+      email: '',
+      phone: '',
+      monthlyIncomeOrRevenue: '',
+      repaymentHistory: '',
+      requestedCredit: '',
+      creditDate: ''
+    });
+    setAddUserFiles({
+      repaymentProof: null,
+      momoStatements: null,
+      bankStatement: null,
+      otherDocs: null
+    });
+    setAddUserConfirmTruth(false);
+    setAddUserErrors({ step1: {}, step2: {}, step3: {} });
+  };
+
+  // Validation flags
+  const isStep1Valid =
+    addUserData.fullNameOrBusiness.trim().length > 0 &&
+    addUserData.entityType !== '' &&
+    addUserData.country.trim().length > 0 &&
+    addUserData.city.trim().length > 0 &&
+    addUserData.email.trim().length > 0 &&
+    validateEmail(addUserData.email) &&
+    addUserData.phone.trim().length > 0 &&
+    validatePhone(addUserData.phone);
+
+  const isStep2Valid = (() => {
+    const income = Number(addUserData.monthlyIncomeOrRevenue);
+    const rh = Number(addUserData.repaymentHistory);
+    const credit = Number(addUserData.requestedCredit);
+    const dateValid = addUserData.creditDate.trim().length > 0 && !isNaN(new Date(addUserData.creditDate).getTime());
+    return (
+      addUserData.monthlyIncomeOrRevenue.trim().length > 0 && !Number.isNaN(income) && income > 0 &&
+      addUserData.repaymentHistory.trim().length > 0 && !Number.isNaN(rh) && rh >= 0 && rh <= 100 &&
+      addUserData.requestedCredit.trim().length > 0 && !Number.isNaN(credit) && credit > 0 &&
+      dateValid
+    );
+  })();
+
+  const isStep3Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements && !!addUserFiles.bankStatement;
+
+  const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirmTruth;
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -172,15 +227,11 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
 
   const handleApproveLimit = () => {
     if (!selectedBorrower) return;
-
-    // Optimistic update
     const updated = { ...selectedBorrower, approved: true };
     setSelectedBorrower(updated);
-
-    // In a real app, we'd update the main list too or refetch
-    // For now, let's just show the success message
     addToast(`Credit limit approved for ${selectedBorrower.name}`, 'success');
   };
+  
   const [searchTerm, setSearchTerm] = useState('');
 
   // Derived list of unique countries from the data for search suggestions
@@ -221,13 +272,13 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
       count: data.count,
       highRisk: data.highRisk,
       avgScore: Math.floor(data.totalScore / data.count)
-    })).sort((a, b) => b.highRisk - a.highRisk); // Sort by risk
+    })).sort((a, b) => b.highRisk - a.highRisk);
   }, [borrowers]);
 
   // GLOBAL STATS (Right Panel when no borrower selected)
   const globalStats = useMemo(() => {
     const highestLimit = [...borrowers].sort((a, b) => (b.maxLimit || 0) - (a.maxLimit || 0))[0];
-    const highestRisk = [...borrowers].sort((a, b) => a.creditScore - b.creditScore)[0]; // Lowest score
+    const highestRisk = [...borrowers].sort((a, b) => a.creditScore - b.creditScore)[0];
 
     const topRisky = borrowers
       .filter(b => b.riskLevel === 'High')
@@ -245,9 +296,8 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
     if (regionBorrowers.length === 0) return null;
 
     const highestLimit = [...regionBorrowers].sort((a, b) => (b.maxLimit || 0) - (a.maxLimit || 0))[0];
-    const highestRisk = [...regionBorrowers].sort((a, b) => a.creditScore - b.creditScore)[0]; // Lowest score
+    const highestRisk = [...regionBorrowers].sort((a, b) => a.creditScore - b.creditScore)[0];
 
-    // Top risky in region, or just top 5 if no high risk
     let topRisky = regionBorrowers
       .filter(b => b.riskLevel === 'High')
       .sort((a, b) => a.creditScore - b.creditScore)
@@ -358,7 +408,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
         </button>
       </header>
 
-      {/* Back Button (Only when Country Selected) */}
       {/* Country Name Display */}
       {selectedCountryName && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
@@ -532,7 +581,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
 
             {(() => {
-// If country selected but no regional stats (no borrowers), show empty state
               if (selectedCountryName && !regionalStats) {
                 return (
                   <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
@@ -552,82 +600,82 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
 
               return (
                 <>
-                  
-             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
-                </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-emerald-500" />
+                      {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
+                    </h3>
 
-                {/* Add User Button (only on Global mode) */}
-                {!selectedCountryName && (
-                  <button
-                    onClick={() => {
-                      setShowAddUserWizard(true);
-                      setAddUserStep(1);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full
-                              bg-slate-800/80 border border-slate-700
-                              hover:bg-slate-700 transition-all
-                              shadow-md hover:shadow-lg"
-                    title="Add user"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.6}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-
-                {/* Report content - always visible now */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                    <div className="font-mono text-emerald-400 font-bold text-lg">
-                      ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
+                    {/* Add User Button (only on Global mode) */}
+                    {!selectedCountryName && (
+                      <button
+                        onClick={() => {
+                          setShowAddUserWizard(true);
+                          setAddUserStep(1);
+                          setShowSuccess(false);
+                        }}
+                        className="w-9 h-9 flex items-center justify-center rounded-full
+                                  bg-slate-800/80 border border-slate-700
+                                  hover:bg-slate-700 transition-all
+                                  shadow-md hover:shadow-lg"
+                        title="Add user"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-4 h-4 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={1.6}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
-                  <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
-                    <div className="font-mono text-red-400 font-bold text-lg">
-                      {stats.highestRisk?.creditScore || '-'}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
-                  </div>
-                </div>
 
-                <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
-                  {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
-                </h4>
-                <div className="space-y-2">
-                  {stats.topRisky.map(b => (
-                    <div
-                      key={b.id}
-                      onClick={() => setSelectedBorrower(b)}
-                      className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
-                        <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
+                  {/* Report content */}
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                      <div className="font-mono text-emerald-400 font-bold text-lg">
+                        ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
-                        <div className="text-[10px] text-slate-600">SCORE</div>
-                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
                     </div>
-                  ))}
-                  {stats.topRisky.length === 0 && (
-                    <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
-                  )}
-                </div>
+                    <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                      <div className="font-mono text-red-400 font-bold text-lg">
+                        {stats.highestRisk?.creditScore || '-'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
+                    </div>
+                  </div>
+
+                  <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
+                    {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
+                  </h4>
+                  <div className="space-y-2">
+                    {stats.topRisky.map(b => (
+                      <div
+                        key={b.id}
+                        onClick={() => setSelectedBorrower(b)}
+                        className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
+                          <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
+                          <div className="text-[10px] text-slate-600">SCORE</div>
+                        </div>
+                      </div>
+                    ))}
+                    {stats.topRisky.length === 0 && (
+                      <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
+                    )}
+                  </div>
                 </>
               );
             })()}
@@ -814,318 +862,407 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           {/* Modal */}
           <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
             <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl p-6 w-full max-w-md pointer-events-auto shadow-2xl animate-in zoom-in duration-300">
-              {/* Stepper */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  {[
-                    { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
-                    { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
-                    { n: 3, label: 'Docs', done: isStep3Valid },
-                    { n: 4, label: 'Confirm', done: canSubmit }
-                  ].map((s, idx, arr) => (
-                    <div key={s.n} className="flex items-center">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
-                          s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-700 text-slate-300 border-slate-600'
-                        }`}
-                        title={s.label}
-                      >
-                        {s.n}
-                      </div>
-                      {idx < arr.length - 1 && (
-                        <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={resetAddUserWizard}
-                  className="text-slate-400 hover:text-white transition-colors"
-                  title="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Step 1 */}
-              {addUserStep === 1 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Full Name / Business Name</label>
-                    {addUserErrors.step1.fullNameOrBusiness && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.fullNameOrBusiness}</p>
-                    )}
-                    <input
-                      value={addUserData.fullNameOrBusiness}
-                      onChange={(e) => {
-                        setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }));
-                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, fullNameOrBusiness: '' } }));
-                      }}
-                      onBlur={() => {
-                        const err = validateStep1Field('Full Name / Business Name', addUserData.fullNameOrBusiness);
-                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, fullNameOrBusiness: err } }));
-                      }}
-                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
-                    />
+              {showSuccess ? (
+                /* Success Screen */
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                    <Check className="w-10 h-10 text-emerald-400" />
                   </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Entity Type</label>
-                    {addUserErrors.step1.entityType && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.entityType}</p>
-                    )}
-                    <select
-                      value={addUserData.entityType}
-                      onChange={(e) => {
-                        setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }));
-                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, entityType: '' } }));
-                      }}
-                      onBlur={() => {
-                        const err = validateStep1Field('Entity Type', addUserData.entityType);
-                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, entityType: err } }));
-                      }}
-                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  <h2 className="text-3xl font-bold text-white mb-2">Success!</h2>
+                  <p className="text-sm text-slate-400 text-center">Your form has been submitted</p>
+                  <button
+                    onClick={resetAddUserWizard}
+                    className="mt-6 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Stepper - only 3 steps */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      {[
+                        { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
+                        { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
+                        { n: 3, label: 'Docs', done: isStep3Valid }
+                      ].map((s, idx, arr) => (
+                        <div key={s.n} className="flex items-center">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
+                              s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-700 text-slate-300 border-slate-600'
+                            }`}
+                            title={s.label}
+                          >
+                            {s.n}
+                          </div>
+                          {idx < arr.length - 1 && (
+                            <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={resetAddUserWizard}
+                      className="text-slate-400 hover:text-white transition-colors"
+                      title="Close"
                     >
-                      <option value="">Select…</option>
-                      <option value="Individual">Individual</option>
-                      <option value="SME">SME</option>
-                      <option value="Corporation">Corporation</option>
-                    </select>
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-300">Country</label>
-                      {addUserErrors.step1.country && (
-                        <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.country}</p>
-                      )}
-                      <input
-                        value={addUserData.country}
-                        onChange={(e) => {
-                          setAddUserData(prev => ({ ...prev, country: e.target.value }));
-                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, country: '' } }));
-                        }}
-                        onBlur={() => {
-                          const err = validateStep1Field('Country', addUserData.country);
-                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, country: err } }));
-                        }}
-                        className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. Rwanda"
-                      />
+                  {/* Step 1 */}
+                  {addUserStep === 1 && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300">Full Name / Business Name</label>
+                        {addUserErrors.step1.fullNameOrBusiness && (
+                          <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.fullNameOrBusiness}</p>
+                        )}
+                        <input
+                          value={addUserData.fullNameOrBusiness}
+                          onChange={(e) => {
+                            setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }));
+                            setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, fullNameOrBusiness: '' } }));
+                          }}
+                          onBlur={() => {
+                            const err = validateStep1Field('Full Name / Business Name', addUserData.fullNameOrBusiness);
+                            setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, fullNameOrBusiness: err } }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300">Entity Type</label>
+                        {addUserErrors.step1.entityType && (
+                          <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.entityType}</p>
+                        )}
+                        <select
+                          value={addUserData.entityType}
+                          onChange={(e) => {
+                            setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }));
+                            setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, entityType: '' } }));
+                          }}
+                          onBlur={() => {
+                            const err = validateStep1Field('Entity Type', addUserData.entityType);
+                            setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, entityType: err } }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        >
+                          <option value="">Select…</option>
+                          <option value="Individual">Individual</option>
+                          <option value="SME">SME</option>
+                          <option value="Corporation">Corporation</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">Country</label>
+                          {addUserErrors.step1.country && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.country}</p>
+                          )}
+                          <input
+                            value={addUserData.country}
+                            onChange={(e) => {
+                              setAddUserData(prev => ({ ...prev, country: e.target.value }));
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, country: '' } }));
+                            }}
+                            onBlur={() => {
+                              const err = validateStep1Field('Country', addUserData.country);
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, country: err } }));
+                            }}
+                            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            placeholder="e.g. Rwanda"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">City</label>
+                          {addUserErrors.step1.city && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.city}</p>
+                          )}
+                          <input
+                            value={addUserData.city}
+                            onChange={(e) => {
+                              setAddUserData(prev => ({ ...prev, city: e.target.value }));
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, city: '' } }));
+                            }}
+                            onBlur={() => {
+                              const err = validateStep1Field('City', addUserData.city);
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, city: err } }));
+                            }}
+                            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            placeholder="e.g. Kigali"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">Email</label>
+                          {addUserErrors.step1.email && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.email}</p>
+                          )}
+                          <input
+                            type="email"
+                            value={addUserData.email}
+                            onChange={(e) => {
+                              setAddUserData(prev => ({ ...prev, email: e.target.value }));
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, email: '' } }));
+                            }}
+                            onBlur={() => {
+                              const err = validateStep1Field('Email', addUserData.email);
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, email: err } }));
+                            }}
+                            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            placeholder="e.g. user@example.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">Phone</label>
+                          {addUserErrors.step1.phone && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.phone}</p>
+                          )}
+                          <input
+                            type="tel"
+                            value={addUserData.phone}
+                            onChange={(e) => {
+                              setAddUserData(prev => ({ ...prev, phone: e.target.value }));
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, phone: '' } }));
+                            }}
+                            onBlur={() => {
+                              const err = validateStep1Field('Phone', addUserData.phone);
+                              setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, phone: err } }));
+                            }}
+                            className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            placeholder="e.g. +250 789 123 456"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-300">City</label>
-                      {addUserErrors.step1.city && (
-                        <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.city}</p>
-                      )}
-                      <input
-                        value={addUserData.city}
-                        onChange={(e) => {
-                          setAddUserData(prev => ({ ...prev, city: e.target.value }));
-                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, city: '' } }));
-                        }}
-                        onBlur={() => {
-                          const err = validateStep1Field('City', addUserData.city);
-                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, city: err } }));
-                        }}
-                        className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. Kigali"
-                      />
+                  )}
+
+                  {/* Step 2 */}
+                  {addUserStep === 2 && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
+                        {addUserErrors.step2.monthlyIncomeOrRevenue && (
+                          <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.monthlyIncomeOrRevenue}</p>
+                        )}
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={addUserData.monthlyIncomeOrRevenue}
+                          onChange={(e) => {
+                            setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }));
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, monthlyIncomeOrRevenue: '' } }));
+                          }}
+                          onBlur={() => {
+                            const err = validateStep2Field('Monthly Income / Revenue', addUserData.monthlyIncomeOrRevenue);
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, monthlyIncomeOrRevenue: err } }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          placeholder="e.g. 1200"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
+                        {addUserErrors.step2.repaymentHistory && (
+                          <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.repaymentHistory}</p>
+                        )}
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          value={addUserData.repaymentHistory}
+                          onChange={(e) => {
+                            setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }));
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, repaymentHistory: '' } }));
+                          }}
+                          onBlur={() => {
+                            const err = validateStep2Field('Repayment History', addUserData.repaymentHistory);
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, repaymentHistory: err } }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          placeholder="0 - 100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300">Requested Credit</label>
+                        {addUserErrors.step2.requestedCredit && (
+                          <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.requestedCredit}</p>
+                        )}
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={addUserData.requestedCredit}
+                          onChange={(e) => {
+                            setAddUserData(prev => ({ ...prev, requestedCredit: e.target.value }));
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, requestedCredit: '' } }));
+                          }}
+                          onBlur={() => {
+                            const err = validateStep2Field('Requested Credit', addUserData.requestedCredit);
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, requestedCredit: err } }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          placeholder="e.g. 5000"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300">Credit Date</label>
+                        {addUserErrors.step2.creditDate && (
+                          <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.creditDate}</p>
+                        )}
+                        <input
+                          type="date"
+                          value={addUserData.creditDate}
+                          onChange={(e) => {
+                            setAddUserData(prev => ({ ...prev, creditDate: e.target.value }));
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, creditDate: '' } }));
+                          }}
+                          onBlur={() => {
+                            const err = validateStep2Field('Credit Date', addUserData.creditDate);
+                            setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, creditDate: err } }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        />
+                      </div>
                     </div>
+                  )}
+
+                  {/* Step 3 */}
+                  {addUserStep === 3 && (
+                    <div className="space-y-4">
+                      <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                        <Upload className="w-4 h-4" /> Upload Documents
+                      </div>
+
+                      {/* 2x2 Grid for file uploads */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">Repayment proof</label>
+                          {addUserErrors.step3.repaymentProof && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.repaymentProof}</p>
+                          )}
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }));
+                              setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, repaymentProof: '' } }));
+                            }}
+                            className="mt-1 w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">MoMo statements</label>
+                          {addUserErrors.step3.momoStatements && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.momoStatements}</p>
+                          )}
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }));
+                              setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, momoStatements: '' } }));
+                            }}
+                            className="mt-1 w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">Bank statement</label>
+                          {addUserErrors.step3.bankStatement && (
+                            <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.bankStatement}</p>
+                          )}
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              setAddUserFiles(prev => ({ ...prev, bankStatement: e.target.files?.[0] || null }));
+                              setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, bankStatement: '' } }));
+                            }}
+                            className="mt-1 w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-slate-300">Other docs (opt.)</label>
+                          <input
+                            type="file"
+                            onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
+                            className="mt-1 w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-600 file:text-white hover:file:bg-slate-700"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-700">
+                        <label className="flex items-start gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={addUserConfirmTruth}
+                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                            className="mt-1"
+                          />
+                          <span>I confirm that all the information provided is true and complete.</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Navigation */}
+                  <div className="mt-5 flex items-center justify-between">
+                    <button
+                      onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
+                      className="flex items-center gap-2 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400"
+                      disabled={addUserStep === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Previous
+                    </button>
+
+                    {addUserStep < 3 ? (
+                      <button
+                        onClick={() => {
+                          let valid = true;
+                          if (addUserStep === 1) valid = validateStep1();
+                          if (addUserStep === 2) valid = validateStep2();
+                          if (valid) setAddUserStep(prev => (prev + 1) as any);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500"
+                      >
+                        Next <ChevronRight className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (!validateStep3()) return;
+                          if (!addUserConfirmTruth) return; // Optionally show a confirmation error
+                          // Show success screen
+                          setShowSuccess(true);
+                          // In a real app, you'd submit data here
+                          addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
+                          // Optionally reset after a delay or let user close manually
+                        }}
+                        disabled={!canSubmit}
+                        className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                          canSubmit
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                            : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
+                        }`}
+                      >
+                        Submit
+                      </button>
+                    )}
                   </div>
-                </div>
+                </>
               )}
-
-              {/* Step 2 */}
-              {addUserStep === 2 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
-                    {addUserErrors.step2.monthlyIncomeOrRevenue && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.monthlyIncomeOrRevenue}</p>
-                    )}
-                    <input
-                      value={addUserData.monthlyIncomeOrRevenue}
-                      onChange={(e) => {
-                        setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }));
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, monthlyIncomeOrRevenue: '' } }));
-                      }}
-                      onBlur={() => {
-                        const err = validateStep2Field('Monthly Income / Revenue', addUserData.monthlyIncomeOrRevenue);
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, monthlyIncomeOrRevenue: err } }));
-                      }}
-                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      placeholder="e.g. 1,200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
-                    {addUserErrors.step2.mobileMoneyUsage && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.mobileMoneyUsage}</p>
-                    )}
-                    <input
-                      value={addUserData.mobileMoneyUsage}
-                      onChange={(e) => {
-                        setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }));
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, mobileMoneyUsage: '' } }));
-                      }}
-                      onBlur={() => {
-                        const err = validateStep2Field('Mobile Money Usage', addUserData.mobileMoneyUsage);
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, mobileMoneyUsage: err } }));
-                      }}
-                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      placeholder="e.g. 400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
-                    {addUserErrors.step2.repaymentHistory && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.repaymentHistory}</p>
-                    )}
-                    <input
-                      value={addUserData.repaymentHistory}
-                      onChange={(e) => {
-                        setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }));
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, repaymentHistory: '' } }));
-                      }}
-                      onBlur={() => {
-                        const err = validateStep2Field('Repayment History', addUserData.repaymentHistory);
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, repaymentHistory: err } }));
-                      }}
-                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      placeholder="0 - 100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
-                    {addUserErrors.step2.requestedCreditLimit && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.requestedCreditLimit}</p>
-                    )}
-                    <input
-                      value={addUserData.requestedCreditLimit}
-                      onChange={(e) => {
-                        setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }));
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, requestedCreditLimit: '' } }));
-                      }}
-                      onBlur={() => {
-                        const err = validateStep2Field('Requested Credit Limit', addUserData.requestedCreditLimit);
-                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, requestedCreditLimit: err } }));
-                      }}
-                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      placeholder="e.g. 5,000"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3 */}
-              {addUserStep === 3 && (
-                <div className="space-y-4">
-                  <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Upload className="w-4 h-4" /> Upload Documents
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Repayment history proof (required)</label>
-                    {addUserErrors.step3.repaymentProof && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.repaymentProof}</p>
-                    )}
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }));
-                        setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, repaymentProof: '' } }));
-                      }}
-                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">MoMo statements (required)</label>
-                    {addUserErrors.step3.momoStatements && (
-                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.momoStatements}</p>
-                    )}
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }));
-                        setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, momoStatements: '' } }));
-                      }}
-                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300">Other supporting documents (optional)</label>
-                    <input
-                      type="file"
-                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
-                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-600 file:text-white hover:file:bg-slate-700"
-                    />
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-700">
-                    <label className="flex items-start gap-2 text-sm text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={addUserConfirmTruth}
-                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                        className="mt-1"
-                      />
-                      <span>I confirm that all the information provided is true and complete.</span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Navigation */}
-              <div className="mt-5 flex items-center justify-between">
-                <button
-                  onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
-                  className="flex items-center gap-2 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400"
-                  disabled={addUserStep === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" /> Previous
-                </button>
-
-                {addUserStep < 3 ? (
-                  <button
-                    onClick={() => {
-                      let valid = true;
-                      if (addUserStep === 1) valid = validateStep1();
-                      if (addUserStep === 2) valid = validateStep2();
-                      if (valid) setAddUserStep(prev => (prev + 1) as any);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500"
-                  >
-                    Next <ChevronRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (!validateStep3()) return;
-                      if (!addUserConfirmTruth) {
-                        // Optionally show a confirmation error
-                        return;
-                      }
-                      addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
-                      resetAddUserWizard();
-                    }}
-                    disabled={!canSubmit}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                      canSubmit
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                        : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
-                    }`}
-                  >
-                    Submit
-                  </button>
-                )}
-              </div>
             </div>
           </div>
         </>
@@ -1141,70 +1278,59 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           />
         ))}
       </div>
-        {/* Bottom Center Compact Stats Bar */}
-<div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
-  <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
 
-    {/* TA */}
-    <div className="relative group flex items-center gap-2">
-      <Users className="w-4 h-4 text-slate-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
-        <span className="font-mono font-bold text-sm text-white">
-          {totalUsers.toLocaleString()}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          Total Active
+      {/* Bottom Center Compact Stats Bar */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
+        <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
+          {/* TA */}
+          <div className="relative group flex items-center gap-2">
+            <Users className="w-4 h-4 text-slate-400" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
+              <span className="font-mono font-bold text-sm text-white">
+                {totalUsers.toLocaleString()}
+              </span>
+            </div>
+            <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                Total Active
+              </div>
+            </div>
+          </div>
+          <div className="w-px h-6 bg-slate-700/50" />
+          {/* AS */}
+          <div className="relative group flex items-center gap-2">
+            <Activity className="w-4 h-4 text-cyan-400" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
+              <span className="font-mono font-bold text-sm text-cyan-400">
+                {avgScore}
+              </span>
+            </div>
+            <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                Average Score
+              </div>
+            </div>
+          </div>
+          <div className="w-px h-6 bg-slate-700/50" />
+          {/* HR */}
+          <div className="relative group flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
+              <span className="font-mono font-bold text-sm text-red-400">
+                {highRiskCount}
+              </span>
+            </div>
+            <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                High Risk
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div className="w-px h-6 bg-slate-700/50" />
-
-    {/* AS */}
-    <div className="relative group flex items-center gap-2">
-      <Activity className="w-4 h-4 text-cyan-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
-        <span className="font-mono font-bold text-sm text-cyan-400">
-          {avgScore}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          Average Score
-        </div>
-      </div>
-    </div>
-
-    <div className="w-px h-6 bg-slate-700/50" />
-
-    {/* HR */}
-    <div className="relative group flex items-center gap-2">
-      <AlertTriangle className="w-4 h-4 text-red-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
-        <span className="font-mono font-bold text-sm text-red-400">
-          {highRiskCount}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          High Risk
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
 
       {/* Footer / System Status */}
       <footer className="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">
@@ -1217,7 +1343,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           </div>
           <p className="text-[10px] text-slate-500 font-mono">SYSTEM_STATUS: OPTIMAL</p>
         </div>
-
         <div className="text-right pointer-events-auto">
           <p className="text-[10px] text-slate-600">
             © 2026 TRUSTCHAIN AI<br />
@@ -1227,6 +1352,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
       </footer>
     </div>
   );
-}
+};
 
 export default App;
