@@ -10,6 +10,8 @@ CREATE TABLE Borrowers (
     phone VARCHAR2(20),
     loan_amount NUMBER(10,2),
     loan_date DATE,
+    credit_score NUMBER(3),
+    risk_level VARCHAR2(20),
     region_id NUMBER,
     
     CONSTRAINT fk_region
@@ -25,7 +27,8 @@ SELECT
     r.region_name,
     COUNT(b.borrower_id) AS total_borrowers,
     SUM(b.loan_amount) AS total_loan_amount,
-    AVG(b.loan_amount) AS average_loan_amount
+    AVG(b.loan_amount) AS average_loan_amount,
+    COUNT(CASE WHEN b.risk_level = 'High' THEN 1 END) AS high_risk_count
 FROM Region r
 LEFT JOIN Borrowers b
     ON r.region_id = b.region_id
