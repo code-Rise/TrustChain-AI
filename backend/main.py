@@ -1,6 +1,6 @@
 # app.py
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import date
 import pandas as pd
@@ -35,7 +35,7 @@ class Borrower(BaseModel):
 
 class BorrowerCreate(BaseModel):
     full_name: str
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     loan_amount: Optional[float] = None
     loan_date: Optional[date] = None
