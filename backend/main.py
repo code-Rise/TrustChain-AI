@@ -1,7 +1,8 @@
 # app.py
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
-from typing import List, Dict, Any
+from pydantic import BaseModel, EmailStr
+from typing import List, Dict, Any, Optional
+from datetime import date
 import pandas as pd
 import joblib
 import os
@@ -32,34 +33,51 @@ class Borrower(BaseModel):
     credit_utilization: float
     payment_ratio: float
 
+class BorrowerCreate(BaseModel):
+    full_name: str
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    loan_amount: Optional[float] = None
+    loan_date: Optional[date] = None
+    region_id: Optional[int] = None
+
+class BorrowerResponse(BaseModel):
+    borrower_id: int
+    full_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    loan_amount: Optional[float] = None
+    loan_date: Optional[date] = None
+    region_id: Optional[int] = None
+
 app = FastAPI(title="Credit Risk Scoring API")
 
-#retrieving all Borrowers   , response_model=List[Dist[str, Any]])
-@app.get("/api/borrowers", response_model=List[Dict[str, Any]])
+# In-memory borrower storage (simulating database)
+borrowers_db: Dict[int, Dict[str, Any]] = {}
+next_borrower_id = 1
+
+@app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
+def create_borrower(borrower: BorrowerCreate):
+    global next_borrower_id
+    borrower_data = borrower.dict()
+    borrower_data['borrower_id'] = next_borrower_id
+    borrowers_db[next_borrower_id] = borrower_data
+    next_borrower_id += 1
+    return borrower_data
+
+@app.get("/api/borrowers", response_model=List[BorrowerResponse])
 def get_all_borrowers(
-    skip: int = Query(0, ge=0, description="Number of records to skip (for pagination)"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return")
-):                                                                                    
-	total_borrowers  = len(borrowers_df)
-	
-	# aha ni appying pagination using dataframe slicing
-	paginated_data = borrowers_df.iloc[skip:skip + limit]
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records")
+):
+    borrowers_list = list(borrowers_db.values())
+    return borrowers_list[skip:skip + limit]
 
-	borrowers_list = paginated_data.to_dict(orient='records')
-	
-	return borrowers_list
-
-
-#getting a borrower  ,  response_model=Dict[str, Any]
-@app.get("/api/borrowers/{borrower_id}", response_model=Dict[str, Any])
-def get_borrower_info(borrower_id: int):
-	borrower_record = borrowers_df[borrowers_df['ID'] ==  borrower_id]
-	if borrower_record.empty:
-		raise HTTPException(status_code=404,
-			detail=f"Borrower with ID {borrower_id} not found"
-		)
-	borrower_data = borrower_record.iloc[0].to_dict()
-	return borrower_data
+@app.get("/api/borrowers/{borrower_id}", response_model=BorrowerResponse)
+def get_borrower_by_id(borrower_id: int):
+    if borrower_id not in borrowers_db:
+        raise HTTPException(status_code=404, detail=f"Borrower with ID {borrower_id} not found")
+    return borrowers_db[borrower_id]
 
 
 @app.post("/credit-score")
