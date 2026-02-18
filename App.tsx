@@ -52,7 +52,6 @@ const [addUserData, setAddUserData] = useState({
   entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
   country: '',
   city: '',
-
   monthlyIncomeOrRevenue: '',
   mobileMoneyUsage: '',
   repaymentHistory: '',
@@ -66,6 +65,63 @@ const [addUserFiles, setAddUserFiles] = useState({
 });
 
 const [addUserConfirmTruth, setAddUserConfirmTruth] = useState(false);
+
+const [addUserErrors, setAddUserErrors] = useState<{
+  step1: { [key: string]: string };
+  step2: { [key: string]: string };
+  step3: { [key: string]: string };
+}>({
+  step1: {},
+  step2: {},
+  step3: {},
+});
+
+// Validation helpers
+const validateStep1Field = (field: string, value: string): string => {
+  if (!value.trim()) return `${field} is required`;
+  return '';
+};
+
+const validateStep1 = () => {
+  const errors: { [key: string]: string } = {};
+  if (!addUserData.fullNameOrBusiness.trim()) errors.fullNameOrBusiness = 'Full name / business name is required';
+  if (!addUserData.entityType) errors.entityType = 'Entity type is required';
+  if (!addUserData.country.trim()) errors.country = 'Country is required';
+  if (!addUserData.city.trim()) errors.city = 'City is required';
+  setAddUserErrors(prev => ({ ...prev, step1: errors }));
+  return Object.keys(errors).length === 0;
+};
+
+const validateStep2Field = (field: string, value: string): string => {
+  if (!value.trim()) return `${field} is required`;
+  if (field === 'Repayment History') {
+    const num = Number(value);
+    if (Number.isNaN(num) || num < 0 || num > 100) return 'Must be a number between 0 and 100';
+  }
+  return '';
+};
+
+const validateStep2 = () => {
+  const errors: { [key: string]: string } = {};
+  if (!addUserData.monthlyIncomeOrRevenue.trim()) errors.monthlyIncomeOrRevenue = 'Monthly income / revenue is required';
+  if (!addUserData.mobileMoneyUsage.trim()) errors.mobileMoneyUsage = 'Mobile money usage is required';
+  if (!addUserData.repaymentHistory.trim()) errors.repaymentHistory = 'Repayment history is required';
+  else {
+    const num = Number(addUserData.repaymentHistory);
+    if (Number.isNaN(num) || num < 0 || num > 100) errors.repaymentHistory = 'Must be a number between 0 and 100';
+  }
+  if (!addUserData.requestedCreditLimit.trim()) errors.requestedCreditLimit = 'Requested credit limit is required';
+  setAddUserErrors(prev => ({ ...prev, step2: errors }));
+  return Object.keys(errors).length === 0;
+};
+
+const validateStep3 = () => {
+  const errors: { [key: string]: string } = {};
+  if (!addUserFiles.repaymentProof) errors.repaymentProof = 'Repayment history proof is required';
+  if (!addUserFiles.momoStatements) errors.momoStatements = 'MoMo statements are required';
+  setAddUserErrors(prev => ({ ...prev, step3: errors }));
+  return Object.keys(errors).length === 0;
+};
 
 const resetAddUserWizard = () => {
   setShowAddUserWizard(false);
@@ -82,6 +138,7 @@ const resetAddUserWizard = () => {
   });
   setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
   setAddUserConfirmTruth(false);
+  setAddUserErrors({ step1: {}, step2: {}, step3: {} });
 };
 
 // Validation
@@ -292,8 +349,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           </div>
         </div>
 
-
-
         {/* Mobile Menu Toggle */}
         <button
           className="md:hidden pointer-events-auto p-2 text-slate-300 hover:text-white"
@@ -471,10 +526,10 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
         )}
       </aside>
 
-      {/* Right Panel - Borrower Detail OR Global/Regional Report */}
+      {/* Right Panel - Borrower Detail OR Global/Regional Report (always dark) */}
       <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
         {!selectedBorrower ? (
-          <div className={`${showAddUserWizard ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-900/80 text-white border-slate-800'} backdrop-blur-md border rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500`}>
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
 
             {(() => {
 // If country selected but no regional stats (no borrowers), show empty state
@@ -531,275 +586,48 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                 )}
               </div>
 
-                {/* Adding a USER */}
-              {showAddUserWizard ? (
-              <div className="w-full h-full">
-                {/* Top stepper */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {/* Step circles: 1..4 */}
-                    {[
-                      { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
-                      { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
-                      { n: 3, label: 'Docs', done: isStep3Valid },
-                      { n: 4, label: 'Confirm', done: canSubmit }
-                    ].map((s, idx, arr) => (
-                      <div key={s.n} className="flex items-center">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
-                            s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-600 border-slate-300'
-                          }`}
-                          title={s.label}
-                        >
-                          {s.n}
-                        </div>
-                        {idx < arr.length - 1 && (
-                          <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-                        )}
-                      </div>
-                    ))}
+                {/* Report content - always visible now */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                    <div className="font-mono text-emerald-400 font-bold text-lg">
+                      ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
                   </div>
-
-                  {/* Close */}
-                  <button
-                    onClick={resetAddUserWizard}
-                    className="text-slate-500 hover:text-slate-900 transition-colors"
-                    title="Close"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                    <div className="font-mono text-red-400 font-bold text-lg">
+                      {stats.highestRisk?.creditScore || '-'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
+                  </div>
                 </div>
 
-                {/* Step content */}
-                {addUserStep === 1 && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Full Name / Business Name</label>
-                      <input
-                        value={addUserData.fullNameOrBusiness}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Entity Type</label>
-                      <select
-                        value={addUserData.entityType}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      >
-                        <option value="">Select…</option>
-                        <option value="Individual">Individual</option>
-                        <option value="SME">SME</option>
-                        <option value="Corporation">Corporation</option>
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Country</label>
-                        <input
-                          value={addUserData.country}
-                          onChange={(e) => setAddUserData(prev => ({ ...prev, country: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          placeholder="e.g. Rwanda"
-                        />
+                <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
+                  {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
+                </h4>
+                <div className="space-y-2">
+                  {stats.topRisky.map(b => (
+                    <div
+                      key={b.id}
+                      onClick={() => setSelectedBorrower(b)}
+                      className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
+                        <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">City</label>
-                        <input
-                          value={addUserData.city}
-                          onChange={(e) => setAddUserData(prev => ({ ...prev, city: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          placeholder="e.g. Kigali"
-                        />
+                      <div className="text-right">
+                        <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
+                        <div className="text-[10px] text-slate-600">SCORE</div>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {addUserStep === 2 && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Monthly Income / Business Revenue</label>
-                      <input
-                        value={addUserData.monthlyIncomeOrRevenue}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 1,200"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Mobile Money Usage / Month</label>
-                      <input
-                        value={addUserData.mobileMoneyUsage}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Repayment History (%)</label>
-                      <input
-                        value={addUserData.repaymentHistory}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="0 - 100"
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Requested Credit Limit</label>
-                      <input
-                        value={addUserData.requestedCreditLimit}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 5,000"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {addUserStep === 3 && (
-                  <div className="space-y-4">
-                    <div className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                      <Upload className="w-4 h-4" /> Upload Documents
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Repayment history proof (required)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">MoMo statements (required)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Other supporting documents (optional)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-200">
-                        <label className="flex items-start gap-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={addUserConfirmTruth}
-                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                            className="mt-1"
-                          />
-                          <span>I confirm that all the information provided is true and complete.</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                        {/* Navigation */}
-                        <div className="mt-5 flex items-center justify-between">
-                          <button
-                            onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
-                            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:hover:text-slate-600"
-                            disabled={addUserStep === 1}
-                          >
-                            <ChevronLeft className="w-4 h-4" /> Previous
-                          </button>
-
-                          {addUserStep < 3 ? (
-                            <button
-                              onClick={() => {
-                                if (addUserStep === 1 && !isStep1Valid) return;
-                                if (addUserStep === 2 && !isStep2Valid) return;
-                                setAddUserStep(prev => (prev + 1) as any);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
-                            >
-                              Next <ChevronRight className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                if (!canSubmit) return;
-                                addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
-                                resetAddUserWizard();
-                              }}
-                              disabled={!canSubmit}
-                              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                                canSubmit
-                                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                                  : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
-                              }`}
-                            >
-                              Submit
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Initially Existing report UI AS IT WAS  */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                            <div className="font-mono text-emerald-400 font-bold text-lg">
-                              ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
-                          </div>
-                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
-                            <div className="font-mono text-red-400 font-bold text-lg">
-                              {stats.highestRisk?.creditScore || '-'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
-                          </div>
-                        </div>
-
-                        <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
-                          {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
-                        </h4>
-                        <div className="space-y-2">
-                          {stats.topRisky.map(b => (
-                            <div
-                              key={b.id}
-                              onClick={() => setSelectedBorrower(b)}
-                              className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
-                            >
-                              <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
-                                <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
-                                <div className="text-[10px] text-slate-600">SCORE</div>
-                              </div>
-                            </div>
-                          ))}
-                          {stats.topRisky.length === 0 && (
-                            <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                  ))}
+                  {stats.topRisky.length === 0 && (
+                    <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
+                  )}
+                </div>
                 </>
               );
             })()}
@@ -976,6 +804,332 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           </div>
         )}
       </Modal>
+
+      {/* Add User Wizard Modal */}
+      {showAddUserWizard && (
+        <>
+          {/* Backdrop with blur */}
+          <div className="fixed inset-0 z-40 backdrop-blur-md bg-black/20" />
+          
+          {/* Modal */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl p-6 w-full max-w-md pointer-events-auto shadow-2xl animate-in zoom-in duration-300">
+              {/* Stepper */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  {[
+                    { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
+                    { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
+                    { n: 3, label: 'Docs', done: isStep3Valid },
+                    { n: 4, label: 'Confirm', done: canSubmit }
+                  ].map((s, idx, arr) => (
+                    <div key={s.n} className="flex items-center">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
+                          s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-700 text-slate-300 border-slate-600'
+                        }`}
+                        title={s.label}
+                      >
+                        {s.n}
+                      </div>
+                      {idx < arr.length - 1 && (
+                        <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={resetAddUserWizard}
+                  className="text-slate-400 hover:text-white transition-colors"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Step 1 */}
+              {addUserStep === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Full Name / Business Name</label>
+                    {addUserErrors.step1.fullNameOrBusiness && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.fullNameOrBusiness}</p>
+                    )}
+                    <input
+                      value={addUserData.fullNameOrBusiness}
+                      onChange={(e) => {
+                        setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }));
+                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, fullNameOrBusiness: '' } }));
+                      }}
+                      onBlur={() => {
+                        const err = validateStep1Field('Full Name / Business Name', addUserData.fullNameOrBusiness);
+                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, fullNameOrBusiness: err } }));
+                      }}
+                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Entity Type</label>
+                    {addUserErrors.step1.entityType && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.entityType}</p>
+                    )}
+                    <select
+                      value={addUserData.entityType}
+                      onChange={(e) => {
+                        setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }));
+                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, entityType: '' } }));
+                      }}
+                      onBlur={() => {
+                        const err = validateStep1Field('Entity Type', addUserData.entityType);
+                        setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, entityType: err } }));
+                      }}
+                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    >
+                      <option value="">Select…</option>
+                      <option value="Individual">Individual</option>
+                      <option value="SME">SME</option>
+                      <option value="Corporation">Corporation</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">Country</label>
+                      {addUserErrors.step1.country && (
+                        <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.country}</p>
+                      )}
+                      <input
+                        value={addUserData.country}
+                        onChange={(e) => {
+                          setAddUserData(prev => ({ ...prev, country: e.target.value }));
+                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, country: '' } }));
+                        }}
+                        onBlur={() => {
+                          const err = validateStep1Field('Country', addUserData.country);
+                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, country: err } }));
+                        }}
+                        className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="e.g. Rwanda"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300">City</label>
+                      {addUserErrors.step1.city && (
+                        <p className="text-xs text-red-400 mt-1">{addUserErrors.step1.city}</p>
+                      )}
+                      <input
+                        value={addUserData.city}
+                        onChange={(e) => {
+                          setAddUserData(prev => ({ ...prev, city: e.target.value }));
+                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, city: '' } }));
+                        }}
+                        onBlur={() => {
+                          const err = validateStep1Field('City', addUserData.city);
+                          setAddUserErrors(prev => ({ ...prev, step1: { ...prev.step1, city: err } }));
+                        }}
+                        className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="e.g. Kigali"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2 */}
+              {addUserStep === 2 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
+                    {addUserErrors.step2.monthlyIncomeOrRevenue && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.monthlyIncomeOrRevenue}</p>
+                    )}
+                    <input
+                      value={addUserData.monthlyIncomeOrRevenue}
+                      onChange={(e) => {
+                        setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }));
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, monthlyIncomeOrRevenue: '' } }));
+                      }}
+                      onBlur={() => {
+                        const err = validateStep2Field('Monthly Income / Revenue', addUserData.monthlyIncomeOrRevenue);
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, monthlyIncomeOrRevenue: err } }));
+                      }}
+                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      placeholder="e.g. 1,200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
+                    {addUserErrors.step2.mobileMoneyUsage && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.mobileMoneyUsage}</p>
+                    )}
+                    <input
+                      value={addUserData.mobileMoneyUsage}
+                      onChange={(e) => {
+                        setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }));
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, mobileMoneyUsage: '' } }));
+                      }}
+                      onBlur={() => {
+                        const err = validateStep2Field('Mobile Money Usage', addUserData.mobileMoneyUsage);
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, mobileMoneyUsage: err } }));
+                      }}
+                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      placeholder="e.g. 400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
+                    {addUserErrors.step2.repaymentHistory && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.repaymentHistory}</p>
+                    )}
+                    <input
+                      value={addUserData.repaymentHistory}
+                      onChange={(e) => {
+                        setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }));
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, repaymentHistory: '' } }));
+                      }}
+                      onBlur={() => {
+                        const err = validateStep2Field('Repayment History', addUserData.repaymentHistory);
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, repaymentHistory: err } }));
+                      }}
+                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      placeholder="0 - 100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
+                    {addUserErrors.step2.requestedCreditLimit && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step2.requestedCreditLimit}</p>
+                    )}
+                    <input
+                      value={addUserData.requestedCreditLimit}
+                      onChange={(e) => {
+                        setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }));
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, requestedCreditLimit: '' } }));
+                      }}
+                      onBlur={() => {
+                        const err = validateStep2Field('Requested Credit Limit', addUserData.requestedCreditLimit);
+                        setAddUserErrors(prev => ({ ...prev, step2: { ...prev.step2, requestedCreditLimit: err } }));
+                      }}
+                      className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      placeholder="e.g. 5,000"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3 */}
+              {addUserStep === 3 && (
+                <div className="space-y-4">
+                  <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <Upload className="w-4 h-4" /> Upload Documents
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Repayment history proof (required)</label>
+                    {addUserErrors.step3.repaymentProof && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.repaymentProof}</p>
+                    )}
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }));
+                        setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, repaymentProof: '' } }));
+                      }}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">MoMo statements (required)</label>
+                    {addUserErrors.step3.momoStatements && (
+                      <p className="text-xs text-red-400 mt-1">{addUserErrors.step3.momoStatements}</p>
+                    )}
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }));
+                        setAddUserErrors(prev => ({ ...prev, step3: { ...prev.step3, momoStatements: '' } }));
+                      }}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Other supporting documents (optional)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-600 file:text-white hover:file:bg-slate-700"
+                    />
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-700">
+                    <label className="flex items-start gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={addUserConfirmTruth}
+                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                        className="mt-1"
+                      />
+                      <span>I confirm that all the information provided is true and complete.</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="mt-5 flex items-center justify-between">
+                <button
+                  onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
+                  className="flex items-center gap-2 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400"
+                  disabled={addUserStep === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" /> Previous
+                </button>
+
+                {addUserStep < 3 ? (
+                  <button
+                    onClick={() => {
+                      let valid = true;
+                      if (addUserStep === 1) valid = validateStep1();
+                      if (addUserStep === 2) valid = validateStep2();
+                      if (valid) setAddUserStep(prev => (prev + 1) as any);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500"
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!validateStep3()) return;
+                      if (!addUserConfirmTruth) {
+                        // Optionally show a confirmation error
+                        return;
+                      }
+                      addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
+                      resetAddUserWizard();
+                    }}
+                    disabled={!canSubmit}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                      canSubmit
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                        : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
+                    }`}
+                  >
+                    Submit
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Toast Notifications container */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none *:pointer-events-auto">
