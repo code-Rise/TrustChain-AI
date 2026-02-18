@@ -39,6 +39,8 @@ class BorrowerCreate(BaseModel):
     phone: Optional[str] = None
     loan_amount: Optional[float] = None
     loan_date: Optional[date] = None
+    credit_score: Optional[int] = None
+    risk_level: Optional[str] = None
     region_id: Optional[int] = None
 
 class BorrowerResponse(BaseModel):
@@ -48,6 +50,8 @@ class BorrowerResponse(BaseModel):
     phone: Optional[str] = None
     loan_amount: Optional[float] = None
     loan_date: Optional[date] = None
+    credit_score: Optional[int] = None
+    risk_level: Optional[str] = None
     region_id: Optional[int] = None
 
 app = FastAPI(title="Credit Risk Scoring API")
@@ -78,6 +82,53 @@ def get_borrower_by_id(borrower_id: int):
     if borrower_id not in borrowers_db:
         raise HTTPException(status_code=404, detail=f"Borrower with ID {borrower_id} not found")
     return borrowers_db[borrower_id]
+
+@app.get("/api/stats/global")
+def get_global_stats():
+    if not borrowers_db:
+        return {"total_users": 0, "average_credit_score": 0, "high_risk_count": 0}
+    
+    borrowers = list(borrowers_db.values())
+    total_users = len(borrowers)
+    
+    credit_scores = [b.get('credit_score') for b in borrowers if b.get('credit_score')]
+    avg_credit_score = round(sum(credit_scores) / len(credit_scores), 2) if credit_scores else 0
+    
+    high_risk_count = sum(1 for b in borrowers if b.get('risk_level') == 'High')
+    
+    return {
+        "total_users": total_users,
+        "average_credit_score": avg_credit_score,
+        "high_risk_count": high_risk_count
+    }
+
+@app.get("/api/stats/regions")
+def get_high_risk_regions():
+    if not borrowers_db:
+        return []
+    
+    region_stats = {}
+    for borrower in borrowers_db.values():
+        region_id = borrower.get('region_id')
+        if region_id:
+            if region_id not in region_stats:
+                region_stats[region_id] = {'total': 0, 'high_risk': 0}
+            region_stats[region_id]['total'] += 1
+            if borrower.get('risk_level') == 'High':
+                region_stats[region_id]['high_risk'] += 1
+    
+    high_risk_regions = [
+        {
+            "region_id": region_id,
+            "total_borrowers": stats['total'],
+            "high_risk_count": stats['high_risk'],
+            "high_risk_percentage": round((stats['high_risk'] / stats['total']) * 100, 2)
+        }
+        for region_id, stats in region_stats.items()
+        if stats['high_risk'] > 0
+    ]
+    
+    return sorted(high_risk_regions, key=lambda x: x['high_risk_percentage'], reverse=True)
 
 
 @app.post("/credit-score")
