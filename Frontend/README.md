@@ -1,34 +1,35 @@
 # 🚀 TrustChain AI – Frontend
 
-This folder contains the core frontend implementation for **TrustChain AI**. It is designed to provide a modern, responsive, and intelligent user interface that bridges the gap between complex AI logic and a seamless user experience.
+This folder contains the core frontend implementation for **TrustChain AI**.built using a modern **React + TypeScript** stack powered by **Vite** for lightning-fast development.
+
 
 ---
 
 ### 🌟 Overview
-TrustChain AI Frontend is built with a focus on high-performance interaction and professional aesthetics. Key highlights include:
-* **Clean & Modern UI:** A minimalist design focused on usability.
-* **Responsive Design:** Optimized for mobile, tablet, and desktop screens.
-* **Interactive Components:** Dynamic elements designed for real-time AI feedback.
-* **Scalable Codebase:** Modular structure ready for seamless backend/API integration.
+TrustChain AI provides an intelligent, responsive interface for AI-driven data interactions. 
+* **Type-Safe Development:** Built with TypeScript to ensure robust, error-free code.
+* **Component-Based UI:** Modular architecture using React components.
+* **Optimized Performance:** Fast builds and Hot Module Replacement (HMR) via Vite.
 
 ---
 
 ### 🖥️ Tech Stack
-* **HTML5:** Semantic structure for SEO and accessibility.
-* **CSS3:** Custom styling using Flexbox, Grid, and smooth transitions.
-* **JavaScript :** Logic for DOM manipulation and asynchronous API handling.
+* **React:** UI library for building interactive components.
+* **TypeScript:** For static typing and better developer experience.
+* **Vite:** Next-generation frontend tooling.
+* **CSS:** Custom styling for a clean, professional look.
 
 ---
 
 ### 📂 Project Structure
+Based on our current architecture:
 ```text
-TrustChain-AI/
-│
-├── index.html          # Main entry point & layout
-├── css/
-│   └── styles.css      # Global styles & UI components
-├── js/
-│   └── main.js         # Core logic & interactivity
-├── assets/
-│   └── images/         # Icons, logos, and UI graphics
-└── README.md           # Documentation
+Frontend/
+├── components/         # Reusable UI components
+├── utils/              # Helper functions and utilities
+├── App.tsx             # Main application component
+├── index.tsx           # Entry point for React
+├── types.ts            # Global TypeScript interfaces/types
+├── metadata.json       # Application metadata and config
+├── vite.config.ts      # Vite configuration
+└── tsconfig.json       # TypeScript configuration
