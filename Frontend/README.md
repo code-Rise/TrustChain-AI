@@ -1,11 +1,11 @@
-# 🚀 TrustChain AI – Frontend
+#  TrustChain AI – Frontend
 
 This folder contains the core frontend implementation for **TrustChain AI**.built using a modern **React + TypeScript** stack powered by **Vite** for lightning-fast development.
 
 
 ---
 
-### 🌟 Overview
+###  Overview
 TrustChain AI provides an intelligent, responsive interface for AI-driven data interactions. 
 * **Type-Safe Development:** Built with TypeScript to ensure robust, error-free code.
 * **Component-Based UI:** Modular architecture using React components.
@@ -13,7 +13,7 @@ TrustChain AI provides an intelligent, responsive interface for AI-driven data i
 
 ---
 
-### 🖥️ Tech Stack
+###  Tech Stack
 * **React:** UI library for building interactive components.
 * **TypeScript:** For static typing and better developer experience.
 * **Vite:** Next-generation frontend tooling.
@@ -21,8 +21,8 @@ TrustChain AI provides an intelligent, responsive interface for AI-driven data i
 
 ---
 
-### 📂 Project Structure
-Based on our current architecture:
+###  Project Structure
+
 ```text
 Frontend/
 ├── components/         # Reusable UI components
