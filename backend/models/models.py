@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, text
 from sqlalchemy.orm import relationship
-from .db.database import Base
+from db.database import Base
 
 class Region(Base):
     __tablename__ = "Region"

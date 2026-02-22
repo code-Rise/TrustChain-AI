@@ -9,8 +9,8 @@ import os
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from .db.database import SessionLocal, engine
-from .models import models
+from db.database import SessionLocal, engine
+from models import models
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
