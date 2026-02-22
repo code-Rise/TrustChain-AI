@@ -71,7 +71,7 @@ class BorrowerResponse(BaseModel):
     region_id: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TransactionResponse(BaseModel):
     transaction_id: int
@@ -81,7 +81,7 @@ class TransactionResponse(BaseModel):
     transaction_type: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class DocumentResponse(BaseModel):
     document_id: int
@@ -91,7 +91,7 @@ class DocumentResponse(BaseModel):
     upload_date: date
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 app = FastAPI(title="Credit Risk Scoring API")
 
@@ -200,4 +200,5 @@ if __name__ == "__main__":
     # We must bind to "0.0.0.0" (all interfaces) rather than "127.0.0.1" (localhost)
     # so that Render's load balancer can reach the application.
     port = int(os.environ.get("PORT", 8000))
+    print(f"Starting server on 0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
