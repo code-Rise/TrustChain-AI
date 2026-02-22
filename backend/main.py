@@ -1,11 +1,27 @@
 # app.py
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import date
 import pandas as pd
 import joblib
 import os
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from .db.database import SessionLocal, engine
+from .models import models
+
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
+
+# Dependency to get database session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # load trained model (pkl) file 
 model_path = 'models/credit_model.pkl'
@@ -56,79 +72,73 @@ class BorrowerResponse(BaseModel):
 
 app = FastAPI(title="Credit Risk Scoring API")
 
-# In-memory borrower storage (simulating database)
-borrowers_db: Dict[int, Dict[str, Any]] = {}
-next_borrower_id = 1
-
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
-def create_borrower(borrower: BorrowerCreate):
-    global next_borrower_id
-    borrower_data = borrower.dict()
-    borrower_data['borrower_id'] = next_borrower_id
-    borrowers_db[next_borrower_id] = borrower_data
-    next_borrower_id += 1
-    return borrower_data
+def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
+    db_borrower = models.Borrower(**borrower.dict())
+    db.add(db_borrower)
+    db.commit()
+    db.refresh(db_borrower)
+    return db_borrower
 
 @app.get("/api/borrowers", response_model=List[BorrowerResponse])
 def get_all_borrowers(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records")
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
+    db: Session = Depends(get_db)
 ):
-    borrowers_list = list(borrowers_db.values())
-    return borrowers_list[skip:skip + limit]
+    borrowers = db.query(models.Borrower).offset(skip).limit(limit).all()
+    return borrowers
 
 @app.get("/api/borrowers/{borrower_id}", response_model=BorrowerResponse)
-def get_borrower_by_id(borrower_id: int):
-    if borrower_id not in borrowers_db:
+def get_borrower_by_id(borrower_id: int, db: Session = Depends(get_db)):
+    db_borrower = db.query(models.Borrower).filter(models.Borrower.borrower_id == borrower_id).first()
+    if db_borrower is None:
         raise HTTPException(status_code=404, detail=f"Borrower with ID {borrower_id} not found")
-    return borrowers_db[borrower_id]
+    return db_borrower
 
 @app.get("/api/stats/global")
-def get_global_stats():
-    if not borrowers_db:
+def get_global_stats(db: Session = Depends(get_db)):
+    total_users = db.query(func.count(models.Borrower.borrower_id)).scalar()
+    if total_users == 0:
         return {"total_users": 0, "average_credit_score": 0, "high_risk_count": 0}
     
-    borrowers = list(borrowers_db.values())
-    total_users = len(borrowers)
-    
-    credit_scores = [b.get('credit_score') for b in borrowers if b.get('credit_score')]
-    avg_credit_score = round(sum(credit_scores) / len(credit_scores), 2) if credit_scores else 0
-    
-    high_risk_count = sum(1 for b in borrowers if b.get('risk_level') == 'High')
+    avg_credit_score = db.query(func.avg(models.Borrower.credit_score)).scalar()
+    high_risk_count = db.query(func.count(models.Borrower.borrower_id))\
+        .filter(models.Borrower.risk_level == 'High').scalar()
     
     return {
         "total_users": total_users,
-        "average_credit_score": avg_credit_score,
+        "average_credit_score": round(float(avg_credit_score), 2) if avg_credit_score else 0,
         "high_risk_count": high_risk_count
     }
 
 @app.get("/api/stats/regions")
-def get_high_risk_regions():
-    if not borrowers_db:
+def get_high_risk_regions(db: Session = Depends(get_db)):
+    # Joining Borrower and Region to get statistics per region
+    # Note: Using subquery or aggregation directly on the joined tables
+    results = db.query(
+        models.Borrower.region_id,
+        func.count(models.Borrower.borrower_id).label('total_borrowers'),
+        func.count(models.Borrower.borrower_id).filter(models.Borrower.risk_level == 'High').label('high_risk_count')
+    ).group_by(models.Borrower.region_id).all()
+
+    if not results:
         return []
     
-    region_stats = {}
-    for borrower in borrowers_db.values():
-        region_id = borrower.get('region_id')
-        if region_id:
-            if region_id not in region_stats:
-                region_stats[region_id] = {'total': 0, 'high_risk': 0}
-            region_stats[region_id]['total'] += 1
-            if borrower.get('risk_level') == 'High':
-                region_stats[region_id]['high_risk'] += 1
+    region_stats = []
+    for region_id, total, high_risk in results:
+        if region_id is None: continue # Skip borrowers with no region assigned
+        
+        percentage = round((high_risk / total) * 100, 2) if total > 0 else 0
+        if high_risk > 0:
+            region_stats.append({
+                "region_id": region_id,
+                "total_borrowers": total,
+                "high_risk_count": high_risk,
+                "high_risk_percentage": percentage
+            })
     
-    high_risk_regions = [
-        {
-            "region_id": region_id,
-            "total_borrowers": stats['total'],
-            "high_risk_count": stats['high_risk'],
-            "high_risk_percentage": round((stats['high_risk'] / stats['total']) * 100, 2)
-        }
-        for region_id, stats in region_stats.items()
-        if stats['high_risk'] > 0
-    ]
-    
-    return sorted(high_risk_regions, key=lambda x: x['high_risk_percentage'], reverse=True)
+    return sorted(region_stats, key=lambda x: x['high_risk_percentage'], reverse=True)
 
 
 @app.post("/credit-score")
