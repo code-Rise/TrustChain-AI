@@ -472,9 +472,233 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
       </aside>
 
       {/* Right Panel - Borrower Detail OR Global/Regional Report */}
+      {/* Add User Modal */}
+      {showAddUserWizard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            {/* Top stepper */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                {[
+                  { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
+                  { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
+                  { n: 3, label: 'Docs', done: isStep3Valid }
+                ].map((s, idx, arr) => (
+                  <div key={s.n} className="flex items-center">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all ${
+                        s.done ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                      title={s.label}
+                    >
+                      {s.n}
+                    </div>
+                    {idx < arr.length - 1 && (
+                      <div className={`w-8 h-[2px] mx-1 transition-all ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={resetAddUserWizard}
+                className="text-slate-400 hover:text-white transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Step content */}
+            {addUserStep === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Full Name / Business Name</label>
+                  <input
+                    value={addUserData.fullNameOrBusiness}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Entity Type</label>
+                  <select
+                    value={addUserData.entityType}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select…</option>
+                    <option value="Individual">Individual</option>
+                    <option value="SME">SME</option>
+                    <option value="Corporation">Corporation</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Country</label>
+                    <input
+                      value={addUserData.country}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, country: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Rwanda"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">City</label>
+                    <input
+                      value={addUserData.city}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, city: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Kigali"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {addUserStep === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
+                  <input
+                    value={addUserData.monthlyIncomeOrRevenue}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 1,200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
+                  <input
+                    value={addUserData.mobileMoneyUsage}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
+                  <input
+                    value={addUserData.repaymentHistory}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="0 - 100"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Must be between 0 and 100.</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
+                  <input
+                    value={addUserData.requestedCreditLimit}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 5,000"
+                  />
+                </div>
+              </div>
+            )}
+
+            {addUserStep === 3 && (
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-emerald-500" /> Upload Documents
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Repayment history proof (required)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">MoMo statements (required)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Other supporting documents (optional)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    />
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-700">
+                    <label className="flex items-start gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={addUserConfirmTruth}
+                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                        className="mt-1 accent-emerald-500"
+                      />
+                      <span>I confirm that all the information provided is true and complete.</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
+                className="flex items-center gap-2 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400 transition-colors"
+                disabled={addUserStep === 1}
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+
+              {addUserStep < 3 ? (
+                <button
+                  onClick={() => {
+                    if (addUserStep === 1 && !isStep1Valid) return;
+                    if (addUserStep === 2 && !isStep2Valid) return;
+                    setAddUserStep(prev => (prev + 1) as any);
+                  }}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-all"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!canSubmit) return;
+                    addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
+                    resetAddUserWizard();
+                  }}
+                  disabled={!canSubmit}
+                  className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                    canSubmit
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                      : 'bg-emerald-600/30 text-white/40 cursor-not-allowed'
+                  }`}
+                >
+                  Submit
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
         {!selectedBorrower ? (
-          <div className={`${showAddUserWizard ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-900/80 text-white border-slate-800'} backdrop-blur-md border rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500`}>
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
 
             {(() => {
 // If country selected but no regional stats (no borrowers), show empty state
@@ -504,257 +728,17 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                   {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
                 </h3>
 
-                {/* Add User Button (only on Global mode) */}
                 {!selectedCountryName && (
                   <button
-                    onClick={() => {
-                      setShowAddUserWizard(true);
-                      setAddUserStep(1);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full
-                              bg-slate-800/80 border border-slate-700
-                              hover:bg-slate-700 transition-all
-                              shadow-md hover:shadow-lg"
+                    onClick={() => setShowAddUserWizard(true)}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all shadow-md hover:shadow-lg"
                     title="Add user"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.6}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
-                    </svg>
+                    <Plus className="w-4 h-4 text-emerald-400" />
                   </button>
                 )}
               </div>
 
-                {/* Adding a USER */}
-              {showAddUserWizard ? (
-              <div className="w-full h-full">
-                {/* Top stepper */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {/* Step circles: 1..4 */}
-                    {[
-                      { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
-                      { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
-                      { n: 3, label: 'Docs', done: isStep3Valid },
-                      { n: 4, label: 'Confirm', done: canSubmit }
-                    ].map((s, idx, arr) => (
-                      <div key={s.n} className="flex items-center">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
-                            s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-600 border-slate-300'
-                          }`}
-                          title={s.label}
-                        >
-                          {s.n}
-                        </div>
-                        {idx < arr.length - 1 && (
-                          <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Close */}
-                  <button
-                    onClick={resetAddUserWizard}
-                    className="text-slate-500 hover:text-slate-900 transition-colors"
-                    title="Close"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Step content */}
-                {addUserStep === 1 && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Full Name / Business Name</label>
-                      <input
-                        value={addUserData.fullNameOrBusiness}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Entity Type</label>
-                      <select
-                        value={addUserData.entityType}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      >
-                        <option value="">Select…</option>
-                        <option value="Individual">Individual</option>
-                        <option value="SME">SME</option>
-                        <option value="Corporation">Corporation</option>
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Country</label>
-                        <input
-                          value={addUserData.country}
-                          onChange={(e) => setAddUserData(prev => ({ ...prev, country: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          placeholder="e.g. Rwanda"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">City</label>
-                        <input
-                          value={addUserData.city}
-                          onChange={(e) => setAddUserData(prev => ({ ...prev, city: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          placeholder="e.g. Kigali"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {addUserStep === 2 && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Monthly Income / Business Revenue</label>
-                      <input
-                        value={addUserData.monthlyIncomeOrRevenue}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 1,200"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Mobile Money Usage / Month</label>
-                      <input
-                        value={addUserData.mobileMoneyUsage}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Repayment History (%)</label>
-                      <input
-                        value={addUserData.repaymentHistory}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="0 - 100"
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Requested Credit Limit</label>
-                      <input
-                        value={addUserData.requestedCreditLimit}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 5,000"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {addUserStep === 3 && (
-                  <div className="space-y-4">
-                    <div className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                      <Upload className="w-4 h-4" /> Upload Documents
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Repayment history proof (required)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">MoMo statements (required)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Other supporting documents (optional)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-200">
-                        <label className="flex items-start gap-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={addUserConfirmTruth}
-                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                            className="mt-1"
-                          />
-                          <span>I confirm that all the information provided is true and complete.</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                        {/* Navigation */}
-                        <div className="mt-5 flex items-center justify-between">
-                          <button
-                            onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
-                            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:hover:text-slate-600"
-                            disabled={addUserStep === 1}
-                          >
-                            <ChevronLeft className="w-4 h-4" /> Previous
-                          </button>
-
-                          {addUserStep < 3 ? (
-                            <button
-                              onClick={() => {
-                                if (addUserStep === 1 && !isStep1Valid) return;
-                                if (addUserStep === 2 && !isStep2Valid) return;
-                                setAddUserStep(prev => (prev + 1) as any);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
-                            >
-                              Next <ChevronRight className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                if (!canSubmit) return;
-                                addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
-                                resetAddUserWizard();
-                              }}
-                              disabled={!canSubmit}
-                              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                                canSubmit
-                                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                                  : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
-                              }`}
-                            >
-                              Submit
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
                       <>
                         {/* Initially Existing report UI AS IT WAS  */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
