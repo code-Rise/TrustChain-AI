@@ -1,5 +1,7 @@
 # app.py
 from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import date
@@ -94,6 +96,24 @@ class DocumentResponse(BaseModel):
         from_attributes = True
 
 app = FastAPI(title="Credit Risk Scoring API")
+
+# Load environment variables
+load_dotenv()
+
+# Configure CORS
+origins = [
+    os.getenv("FRONTEND_URL", "http://localhost:5173"),
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
 def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
