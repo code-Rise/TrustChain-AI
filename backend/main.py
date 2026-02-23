@@ -1,11 +1,29 @@
 # app.py
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import date
 import pandas as pd
 import joblib
 import os
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from db.database import SessionLocal, engine
+from models import models
+import uvicorn
+ 
+
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
+
+# Dependency to get database session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # load trained model (pkl) file 
 model_path = 'models/credit_model.pkl'
@@ -24,8 +42,6 @@ if not os.path.exists(data_path):
 # loading the complete borrower dataset into memory for fast access
 borrowers_df = pd.read_csv(data_path)
 
-
-
 class Borrower(BaseModel):
     LIMIT_BAL: float
     AGE: float
@@ -34,101 +50,122 @@ class Borrower(BaseModel):
     payment_ratio: float
 
 class BorrowerCreate(BaseModel):
-    full_name: str
+    first_name: str
+    last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
     loan_amount: Optional[float] = None
     loan_date: Optional[date] = None
-    credit_score: Optional[int] = None
-    risk_level: Optional[str] = None
+    decision: Optional[str] = "Pending"
     region_id: Optional[int] = None
 
 class BorrowerResponse(BaseModel):
     borrower_id: int
-    full_name: str
+    first_name: str
+    last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
     loan_amount: Optional[float] = None
     loan_date: Optional[date] = None
-    credit_score: Optional[int] = None
-    risk_level: Optional[str] = None
+    decision: Optional[str] = None
     region_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class TransactionResponse(BaseModel):
+    transaction_id: int
+    borrower_id: int
+    transaction_date: date
+    transaction_amount: float
+    transaction_type: str
+
+    class Config:
+        from_attributes = True
+
+class DocumentResponse(BaseModel):
+    document_id: int
+    borrower_id: int
+    document_name: str
+    document_type: str
+    upload_date: date
+
+    class Config:
+        from_attributes = True
 
 app = FastAPI(title="Credit Risk Scoring API")
 
-# In-memory borrower storage (simulating database)
-borrowers_db: Dict[int, Dict[str, Any]] = {}
-next_borrower_id = 1
-
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
-def create_borrower(borrower: BorrowerCreate):
-    global next_borrower_id
-    borrower_data = borrower.dict()
-    borrower_data['borrower_id'] = next_borrower_id
-    borrowers_db[next_borrower_id] = borrower_data
-    next_borrower_id += 1
-    return borrower_data
+def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
+    db_borrower = models.Borrower(**borrower.dict())
+    db.add(db_borrower)
+    db.commit()
+    db.refresh(db_borrower)
+    return db_borrower
 
 @app.get("/api/borrowers", response_model=List[BorrowerResponse])
 def get_all_borrowers(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records")
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
+    db: Session = Depends(get_db)
 ):
-    borrowers_list = list(borrowers_db.values())
-    return borrowers_list[skip:skip + limit]
+    borrowers = db.query(models.Borrower).offset(skip).limit(limit).all()
+    return borrowers
 
 @app.get("/api/borrowers/{borrower_id}", response_model=BorrowerResponse)
-def get_borrower_by_id(borrower_id: int):
-    if borrower_id not in borrowers_db:
+def get_borrower_by_id(borrower_id: int, db: Session = Depends(get_db)):
+    db_borrower = db.query(models.Borrower).filter(models.Borrower.borrower_id == borrower_id).first()
+    if db_borrower is None:
         raise HTTPException(status_code=404, detail=f"Borrower with ID {borrower_id} not found")
-    return borrowers_db[borrower_id]
+    return db_borrower
 
 @app.get("/api/stats/global")
-def get_global_stats():
-    if not borrowers_db:
-        return {"total_users": 0, "average_credit_score": 0, "high_risk_count": 0}
+def get_global_stats(db: Session = Depends(get_db)):
+    total_users = db.query(func.count(models.Borrower.borrower_id)).scalar()
+    if total_users == 0:
+        return {"total_users": 0, "average_loan_amount": 0, "approved_count": 0}
     
-    borrowers = list(borrowers_db.values())
-    total_users = len(borrowers)
-    
-    credit_scores = [b.get('credit_score') for b in borrowers if b.get('credit_score')]
-    avg_credit_score = round(sum(credit_scores) / len(credit_scores), 2) if credit_scores else 0
-    
-    high_risk_count = sum(1 for b in borrowers if b.get('risk_level') == 'High')
+    avg_loan = db.query(func.avg(models.Borrower.loan_amount)).scalar()
+    approved_count = db.query(func.count(models.Borrower.borrower_id))\
+        .filter(models.Borrower.decision == 'Approved').scalar()
     
     return {
         "total_users": total_users,
-        "average_credit_score": avg_credit_score,
-        "high_risk_count": high_risk_count
+        "average_loan_amount": round(float(avg_loan), 2) if avg_loan else 0,
+        "approved_count": approved_count
     }
 
 @app.get("/api/stats/regions")
-def get_high_risk_regions():
-    if not borrowers_db:
+def get_region_stats(db: Session = Depends(get_db)):
+    results = db.query(
+        models.Borrower.region_id,
+        func.count(models.Borrower.borrower_id).label('total_borrowers'),
+        func.avg(models.Borrower.loan_amount).label('avg_loan')
+    ).group_by(models.Borrower.region_id).all()
+
+    if not results:
         return []
     
-    region_stats = {}
-    for borrower in borrowers_db.values():
-        region_id = borrower.get('region_id')
-        if region_id:
-            if region_id not in region_stats:
-                region_stats[region_id] = {'total': 0, 'high_risk': 0}
-            region_stats[region_id]['total'] += 1
-            if borrower.get('risk_level') == 'High':
-                region_stats[region_id]['high_risk'] += 1
-    
-    high_risk_regions = [
-        {
+    region_stats = []
+    for region_id, total, avg_loan in results:
+        if region_id is None: continue
+        region_stats.append({
             "region_id": region_id,
-            "total_borrowers": stats['total'],
-            "high_risk_count": stats['high_risk'],
-            "high_risk_percentage": round((stats['high_risk'] / stats['total']) * 100, 2)
-        }
-        for region_id, stats in region_stats.items()
-        if stats['high_risk'] > 0
-    ]
+            "total_borrowers": total,
+            "average_loan_amount": round(float(avg_loan), 2) if avg_loan else 0
+        })
     
-    return sorted(high_risk_regions, key=lambda x: x['high_risk_percentage'], reverse=True)
+    return region_stats
+
+@app.get("/api/borrowers/{borrower_id}/transactions", response_model=List[TransactionResponse])
+def get_borrower_transactions(borrower_id: int, db: Session = Depends(get_db)):
+    transactions = db.query(models.HistoricalTransaction).filter(models.HistoricalTransaction.borrower_id == borrower_id).all()
+    return transactions
+
+@app.get("/api/borrowers/{borrower_id}/documents", response_model=List[DocumentResponse])
+def get_borrower_documents(borrower_id: int, db: Session = Depends(get_db)):
+    documents = db.query(models.Document).filter(models.Document.borrower_id == borrower_id).all()
+    return documents
 
 
 @app.post("/credit-score")
@@ -158,4 +195,10 @@ def credit_score_endpoint(data: Borrower):
 def read_root():
     return {"message": "Credit Risk Scoring API is running. Use /credit-score endpoint to POST data."}
 
-
+if __name__ == "__main__":
+    # Render and other cloud platforms provide a PORT environment variable.
+    # We must bind to "0.0.0.0" (all interfaces) rather than "127.0.0.1" (localhost)
+    # so that Render's load balancer can reach the application.
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Starting server on 0.0.0.0:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

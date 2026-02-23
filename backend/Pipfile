@@ -4,12 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-numpy = "*"
 matplotlib = "*"
-scikit-learn = "*"
 kaggle = "*"
 kagglehub = "*"
+fastapi = "*"
+uvicorn = "*"
 pandas = "*"
+scikit-learn = "*"
+joblib = "*"
+numpy = "*"
+email-validator = "*"
 
 [dev-packages]
 
