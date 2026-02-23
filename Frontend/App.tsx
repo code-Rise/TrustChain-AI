@@ -692,29 +692,29 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-              {addUserStep < 2 ? (
+              {addUserStep < 3 ? (
                 <button
                   onClick={() => {
                     if (addUserStep === 1 && !isStep1Valid) return;
+                    if (addUserStep === 2 && !canSubmit) return;
                     setAddUserStep(prev => (prev + 1) as any);
                   }}
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-all"
+                  disabled={addUserStep === 2 && !canSubmit}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    (addUserStep === 2 && !canSubmit)
+                      ? 'bg-emerald-600/30 text-white/40 cursor-not-allowed'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                  }`}
                 >
                   Next <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   onClick={() => {
-                    if (!canSubmit) return;
                     addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
                     resetAddUserWizard();
                   }}
-                  disabled={!canSubmit}
-                  className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                    canSubmit
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                      : 'bg-emerald-600/30 text-white/40 cursor-not-allowed'
-                  }`}
+                  className="px-5 py-2 rounded-lg text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg transition-all"
                 >
                   Submit
                 </button>
