@@ -102,14 +102,7 @@ const isStep1Valid =
   addUserData.fullNameOrBusiness.trim().length > 0 &&
   addUserData.entityType !== '' &&
   addUserData.country.trim().length > 0 &&
-  addUserData.city.trim().length > 0 &&
-  addUserData.monthlyIncomeOrRevenue.trim().length > 0 &&
-  addUserData.mobileMoneyUsage.trim().length > 0 &&
-  addUserData.repaymentHistory.trim().length > 0 &&
-  !Number.isNaN(Number(addUserData.repaymentHistory)) &&
-  Number(addUserData.repaymentHistory) >= 0 &&
-  Number(addUserData.repaymentHistory) <= 100 &&
-  addUserData.requestedCreditLimit.trim().length > 0;
+  addUserData.city.trim().length > 0;
 
 const isStep2Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
 
@@ -609,51 +602,6 @@ const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
 
             {addUserStep === 2 && (
               <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
-                  <input
-                    value={addUserData.monthlyIncomeOrRevenue}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. 1,200"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
-                  <input
-                    value={addUserData.mobileMoneyUsage}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. 400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
-                  <input
-                    value={addUserData.repaymentHistory}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="0 - 100"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">Must be between 0 and 100.</p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
-                  <input
-                    value={addUserData.requestedCreditLimit}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. 5,000"
-                  />
-                </div>
-              </div>
-            )}
-
-            {addUserStep === 3 && (
-              <div className="space-y-4">
                 <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
                   <Upload className="w-4 h-4 text-emerald-500" /> Upload Documents
                 </div>
@@ -685,18 +633,51 @@ const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
                       className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
                     />
                   </div>
+                </div>
+              </div>
+            )}
 
-                  <div className="pt-3 border-t border-slate-700">
-                    <label className="flex items-start gap-2 text-sm text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={addUserConfirmTruth}
-                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                        className="mt-1 accent-emerald-500"
-                      />
-                      <span>I confirm that all the information provided is true and complete.</span>
-                    </label>
+            {addUserStep === 3 && (
+              <div className="space-y-4">
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 mb-3">
+                    <CheckCircle className="w-8 h-8 text-emerald-400" />
                   </div>
+                  <h3 className="text-lg font-bold text-white mb-1">Review Your Information</h3>
+                  <p className="text-xs text-slate-400">Please verify all details before submission</p>
+                </div>
+
+                <div className="bg-slate-950/50 rounded-lg border border-slate-700 p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-slate-500 text-xs">Name/Business</span>
+                      <p className="text-white font-medium">{addUserData.fullNameOrBusiness}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-xs">Entity Type</span>
+                      <p className="text-white font-medium">{addUserData.entityType}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-xs">Location</span>
+                      <p className="text-white font-medium">{addUserData.city}, {addUserData.country}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-xs">Documents</span>
+                      <p className="text-emerald-400 font-medium text-xs">✓ {addUserFiles.repaymentProof && addUserFiles.momoStatements ? 'Uploaded' : 'Missing'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-700">
+                  <label className="flex items-start gap-2 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={addUserConfirmTruth}
+                      onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                      className="mt-1 accent-emerald-500"
+                    />
+                    <span>I confirm that all the information provided is true and complete.</span>
+                  </label>
                 </div>
               </div>
             )}
@@ -711,11 +692,10 @@ const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-              {addUserStep < 3 ? (
+              {addUserStep < 2 ? (
                 <button
                   onClick={() => {
                     if (addUserStep === 1 && !isStep1Valid) return;
-                    if (addUserStep === 2 && !isStep2Valid) return;
                     setAddUserStep(prev => (prev + 1) as any);
                   }}
                   className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-all"
