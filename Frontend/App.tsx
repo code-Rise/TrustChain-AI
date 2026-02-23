@@ -687,20 +687,20 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                     />
                   </div>
 
-                      <div className="pt-3 border-t border-slate-200">
-                        <label className="flex items-start gap-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={addUserConfirmTruth}
-                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                            className="mt-1"
-                          />
-                          <span>I confirm that all the information provided is true and complete.</span>
-                        </label>
-                      </div>
-                    </div>
+                  <div className="pt-3 border-t border-slate-700">
+                    <label className="flex items-start gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={addUserConfirmTruth}
+                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                        className="mt-1 accent-emerald-500"
+                      />
+                      <span>I confirm that all the information provided is true and complete.</span>
+                    </label>
                   </div>
-                )}
+                </div>
+              </div>
+            )}
 
             {/* Navigation */}
             <div className="mt-6 flex items-center justify-between">
@@ -712,40 +712,81 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-                          {addUserStep < 3 ? (
-                            <button
-                              onClick={() => {
-                                if (addUserStep === 1 && !isStep1Valid) return;
-                                if (addUserStep === 2 && !isStep2Valid) return;
-                                setAddUserStep(prev => (prev + 1) as any);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
-                            >
-                              Next <ChevronRight className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                if (!canSubmit) return;
-                                addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
-                                resetAddUserWizard();
-                              }}
-                              disabled={!canSubmit}
-                              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                                canSubmit
-                                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                                  : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
-                              }`}
-                            >
-                              Submit
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Initially Existing report UI AS IT WAS  */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
+              {addUserStep < 3 ? (
+                <button
+                  onClick={() => {
+                    if (addUserStep === 1 && !isStep1Valid) return;
+                    if (addUserStep === 2 && !isStep2Valid) return;
+                    setAddUserStep(prev => (prev + 1) as any);
+                  }}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-all"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!canSubmit) return;
+                    addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
+                    resetAddUserWizard();
+                  }}
+                  disabled={!canSubmit}
+                  className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                    canSubmit
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                      : 'bg-emerald-600/30 text-white/40 cursor-not-allowed'
+                  }`}
+                >
+                  Submit
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
+        {!selectedBorrower ? (
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
+
+            {(() => {
+              if (selectedCountryName && !regionalStats) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+                    <div className="p-3 bg-slate-800/50 rounded-full mb-3">
+                      <Users className="w-6 h-6 text-slate-600" />
+                    </div>
+                    <h3 className="font-tech text-lg font-bold text-slate-400 mb-1">{selectedCountryName}</h3>
+                    <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
+                      No active credit entities currently monitored in this region.
+                    </p>
+                  </div>
+                );
+              }
+
+              const stats = (selectedCountryName && regionalStats) ? regionalStats : globalStats;
+              if (!stats) return null;
+
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-emerald-500" />
+                      {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
+                    </h3>
+
+                    {!selectedCountryName && (
+                      <button
+                        onClick={() => setShowAddUserWizard(true)}
+                        className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all shadow-md hover:shadow-lg"
+                        title="Add user"
+                      >
+                        <Plus className="w-4 h-4 text-emerald-400" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-6">
                           <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
                             <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
                             <div className="font-mono text-emerald-400 font-bold text-lg">
