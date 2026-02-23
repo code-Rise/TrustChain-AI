@@ -519,25 +519,31 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
           <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             {/* Top stepper */}
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 {[
                   { n: 1, label: 'Info', done: addUserStep > 1 || isStep1Valid },
                   { n: 2, label: 'Docs', done: addUserStep > 2 || isStep2Valid },
                   { n: 3, label: 'Review', done: canSubmit }
                 ].map((s, idx, arr) => (
-                  <div key={s.n} className="flex items-center">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all ${
-                        s.done ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-800 text-slate-400 border-slate-700'
-                      }`}
-                      title={s.label}
-                    >
-                      {s.n}
+                  <React.Fragment key={s.n}>
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all ${
+                          addUserStep === s.n ? 'bg-emerald-500 text-white border-emerald-500' :
+                          s.done ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' :
+                          'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}
+                      >
+                        {s.n}
+                      </div>
+                      <span className={`text-[10px] mt-1 font-medium ${
+                        addUserStep === s.n ? 'text-emerald-400' : 'text-slate-500'
+                      }`}>{s.label}</span>
                     </div>
                     {idx < arr.length - 1 && (
-                      <div className={`w-8 h-[2px] mx-1 transition-all ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                      <div className={`w-12 h-[2px] mx-2 mb-4 transition-all ${s.done ? 'bg-emerald-500' : 'bg-slate-700'}`} />
                     )}
-                  </div>
+                  </React.Fragment>
                 ))}
               </div>
 
