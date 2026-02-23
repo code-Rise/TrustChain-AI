@@ -281,6 +281,11 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
 
   if (!mounted) return null;
 
+  // Stats for the header
+  const totalUsers = borrowers.length;
+  const avgScore = Math.floor(borrowers.reduce((acc, b) => acc + b.creditScore, 0) / totalUsers);
+  const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
+
   return (
     <div className="relative w-full h-screen bg-slate-950 overflow-hidden text-white selection:bg-emerald-500/30">
       {isLoading && (
