@@ -271,11 +271,6 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
 
   if (!mounted) return null;
 
-  // Stats for the header
-  const totalUsers = borrowers.length;
-  const avgScore = Math.floor(borrowers.reduce((acc, b) => acc + b.creditScore, 0) / totalUsers);
-  const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
-
   return (
     <div className="relative w-full h-screen bg-slate-950 overflow-hidden text-white selection:bg-emerald-500/30">
       {isLoading && (
@@ -701,92 +696,114 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-              {addUserStep < 3 ? (
-                <button
-                  onClick={() => {
-                    if (addUserStep === 1 && !isStep1Valid) return;
-                    if (addUserStep === 2 && !canSubmit) return;
-                    setAddUserStep(prev => (prev + 1) as any);
-                  }}
-                  disabled={addUserStep === 2 && !canSubmit}
-                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    (addUserStep === 2 && !canSubmit)
-                      ? 'bg-emerald-600/30 text-white/40 cursor-not-allowed'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-500'
-                  }`}
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await api.post('/api/register-user', {
-                        fullNameOrBusiness: addUserData.fullNameOrBusiness,
-                        entityType: addUserData.entityType,
-                        country: addUserData.country,
-                        city: addUserData.city
-                      });
-                      addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted successfully`, 'success');
-                      resetAddUserWizard();
-                      await fetchBorrowers();
-                    } catch (error) {
-                      console.error('Failed to submit:', error);
-                      addToast('Failed to submit. Please try again.', 'error');
-                    }
-                  }}
-                  className="px-5 py-2 rounded-lg text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg transition-all"
-                >
-                  Submit
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                          {addUserStep < 3 ? (
+                            <button
+                              onClick={async () => {
+                                if (addUserStep === 1 && !isStep1Valid) return;
+                                if (addUserStep === 2 && !isStep2Valid) {
+                                   return;
+                                }
+                                if (addUserStep === 2) {
+                                  // Call Credit Score API when moving from Step 2
+                                  setIsCalculating(true);
+                                  try {
+                                    const response = await api.post('/credit-score', {
+                                      LIMIT_BAL: parseFloat(addUserData.requestedCreditLimit) || 0,
+                                      AGE: parseFloat(addUserData.age) || 25,
+                                      avg_pay_delay: 0, // Heuristic defaults for now
+                                      credit_utilization: 0.3,
+                                      payment_ratio: parseFloat(addUserData.repaymentHistory) / 100 || 0.9
+                                    });
+                                    setCreditScoreResult(response.data);
+                                    addToast(`Credit analysis complete for ${addUserData.fullNameOrBusiness}`, 'success');
+                                  } catch (err) {
+                                    console.error("Credit score calculation failed", err);
+                                    addToast("Failed to calculate credit score. Using default values.", "error");
+                                    // Fallback mock
+                                    setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
+                                  } finally {
+                                    setIsCalculating(false);
+                                  }
+                                }
+                                setAddUserStep(prev => (prev + 1) as any);
+                              }}
+                              disabled={isCalculating}
+                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                            >
+                              {isCalculating ? 'Processing...' : (
+                                <>Next <ChevronRight className="w-4 h-4" /></>
+                              )}
+                            </button>
+                          ) : addUserStep === 3 ? (
+                             <button
+                               onClick={() => setAddUserStep(4)}
+                               disabled={!canSubmit}
+                               className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                                 canSubmit
+                                   ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                                   : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
+                               }`}
+                             >
+                               Review Analysis
+                             </button>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                if (!canSubmit) return;
+                                try {
+                                  const names = addUserData.fullNameOrBusiness.split(' ');
+                                  const firstName = names[0] || "Unknown";
+                                  const lastName = names.slice(1).join(' ') || "User";
 
-      <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
-        {!selectedBorrower ? (
-          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
+                                  await api.post('/api/borrowers', {
+                                    first_name: firstName,
+                                    last_name: lastName,
+                                    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+                                    loan_amount: parseFloat(addUserData.requestedCreditLimit),
+                                    loan_date: new Date().toISOString().split('T')[0],
+                                    decision: creditScoreResult?.Risk_Level === 'High' ? 'Denied' : 'Approved',
+                                    region_id: 1 // Default to Kigali
+                                  });
 
-            {(() => {
-              if (selectedCountryName && !regionalStats) {
-                return (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
-                    <div className="p-3 bg-slate-800/50 rounded-full mb-3">
-                      <Users className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <h3 className="font-tech text-lg font-bold text-slate-400 mb-1">{selectedCountryName}</h3>
-                    <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
-                      No active credit entities currently monitored in this region.
-                    </p>
-                  </div>
-                );
-              }
+                                  addToast(`New entity "${addUserData.fullNameOrBusiness}" integrated successfully`, 'success');
 
-              const stats = (selectedCountryName && regionalStats) ? regionalStats : globalStats;
-              if (!stats) return null;
+                                  // Refresh borrowers list
+                                  const response = await api.get('/api/borrowers');
+                                  setBorrowers(response.data.map((b: any) => ({
+                                      id: `BRW-${b.borrower_id}`,
+                                      name: `${b.first_name} ${b.last_name}`,
+                                      location: {
+                                        lat: b.region_id === 1 ? -1.9441 + (Math.random() - 0.5) * 0.2 : -2.6000 + (Math.random() - 0.5) * 0.2,
+                                        lng: b.region_id === 1 ? 30.0619 + (Math.random() - 0.5) * 0.2 : 29.7333 + (Math.random() - 0.5) * 0.2,
+                                        city: b.region_id === 1 ? "Kigali" : "Huye",
+                                        country: "Rwanda"
+                                      },
+                                      creditScore: b.decision === 'Approved' ? 750 : 500,
+                                      riskLevel: b.decision === 'Approved' ? 'Low' : 'High',
+                                      spendingTrend: [65, 59, 80, 81, 56, 55, 40],
+                                      repaymentHistory: 95,
+                                      mobileMoneyUsage: 2500,
+                                      approved: b.decision === 'Approved',
+                                      maxLimit: b.loan_amount
+                                  })));
 
-              return (
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-emerald-500" />
-                      {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
-                    </h3>
-
-                    {!selectedCountryName && (
-                      <button
-                        onClick={() => setShowAddUserWizard(true)}
-                        className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all shadow-md hover:shadow-lg"
-                        title="Add user"
-                      >
-                        <Plus className="w-4 h-4 text-emerald-400" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mb-6">
+                                  resetAddUserWizard();
+                                } catch (err) {
+                                  console.error("Submission failed", err);
+                                  addToast("Failed to submit data to backend.", "error");
+                                }
+                              }}
+                              className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg"
+                            >
+                              Finalize & Submit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Initially Existing report UI AS IT WAS  */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
                           <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
                             <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
                             <div className="font-mono text-emerald-400 font-bold text-lg">
