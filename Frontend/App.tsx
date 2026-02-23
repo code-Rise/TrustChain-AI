@@ -716,9 +716,20 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                 </button>
               ) : (
                 <button
-                  onClick={() => {
-                    addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
-                    resetAddUserWizard();
+                  onClick={async () => {
+                    try {
+                      const response = await api.post('/api/register-user', {
+                        fullNameOrBusiness: addUserData.fullNameOrBusiness,
+                        entityType: addUserData.entityType,
+                        country: addUserData.country,
+                        city: addUserData.city
+                      });
+                      addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted successfully`, 'success');
+                      resetAddUserWizard();
+                    } catch (error) {
+                      console.error('Failed to submit:', error);
+                      addToast('Failed to submit. Please try again.', 'error');
+                    }
                   }}
                   className="px-5 py-2 rounded-lg text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg transition-all"
                 >
