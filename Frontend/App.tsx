@@ -281,6 +281,11 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
 
   if (!mounted) return null;
 
+  // Stats for the header
+  const totalUsers = borrowers.length;
+  const avgScore = totalUsers > 0 ? Math.floor(borrowers.reduce((acc, b) => acc + b.creditScore, 0) / totalUsers) : 0;
+  const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
+
   return (
     <div className="relative w-full h-screen bg-slate-950 overflow-hidden text-white selection:bg-emerald-500/30">
       {isLoading && (
@@ -823,13 +828,15 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                                       AGE: parseFloat(addUserData.age) || 25,
                                       avg_pay_delay: 0, // Heuristic defaults for now
                                       credit_utilization: 0.3,
-                                      payment_ratio: parseFloat(addUserData.repaymentHistory) / 100 || 0.9
+                                      payment_ratio: (parseFloat(addUserData.repaymentHistory) / 100) || 0.9
                                     });
                                     setCreditScoreResult(response.data);
                                     addToast(`Credit analysis complete for ${addUserData.fullNameOrBusiness}`, 'success');
-                                  } catch (err) {
+                                  } catch (err: any) {
                                     console.error("Credit score calculation failed", err);
-                                    addToast("Failed to calculate credit score. Using default values.", "error");
+                                    const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
+                                    const errorCode = err.code ? ` (${err.code})` : "";
+                                    addToast(`Failed to calculate credit score: ${errorDetails}${errorCode}. Using fallback.`, "error");
                                     // Fallback mock
                                     setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
                                   } finally {
@@ -899,9 +906,11 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                                   })));
 
                                   resetAddUserWizard();
-                                } catch (err) {
+                                } catch (err: any) {
                                   console.error("Submission failed", err);
-                                  addToast("Failed to submit data to backend.", "error");
+                                  const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
+                                  const errorCode = err.code ? ` (${err.code})` : "";
+                                  addToast(`Failed to send data to backend: ${errorDetails}${errorCode}`, "error");
                                 }
                               }}
                               className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg"
