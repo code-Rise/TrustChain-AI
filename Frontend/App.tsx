@@ -47,7 +47,7 @@ const App: React.FC = () => {
   };
   // Add User Wizard State
 const [showAddUserWizard, setShowAddUserWizard] = useState(false);
-const [addUserStep, setAddUserStep] = useState<1 | 2 | 3 | 4>(1);
+const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
 
 const [addUserData, setAddUserData] = useState({
   fullNameOrBusiness: '',
@@ -102,24 +102,18 @@ const isStep1Valid =
   addUserData.fullNameOrBusiness.trim().length > 0 &&
   addUserData.entityType !== '' &&
   addUserData.country.trim().length > 0 &&
-  addUserData.city.trim().length > 0;
+  addUserData.city.trim().length > 0 &&
+  addUserData.monthlyIncomeOrRevenue.trim().length > 0 &&
+  addUserData.mobileMoneyUsage.trim().length > 0 &&
+  addUserData.repaymentHistory.trim().length > 0 &&
+  !Number.isNaN(Number(addUserData.repaymentHistory)) &&
+  Number(addUserData.repaymentHistory) >= 0 &&
+  Number(addUserData.repaymentHistory) <= 100 &&
+  addUserData.requestedCreditLimit.trim().length > 0;
 
-const isStep2Valid = (() => {
-  const rh = Number(addUserData.repaymentHistory);
-  return (
-    addUserData.monthlyIncomeOrRevenue.trim().length > 0 &&
-    addUserData.mobileMoneyUsage.trim().length > 0 &&
-    addUserData.repaymentHistory.trim().length > 0 &&
-    !Number.isNaN(rh) &&
-    rh >= 0 &&
-    rh <= 100 &&
-    addUserData.requestedCreditLimit.trim().length > 0
-  );
-})();
+const isStep2Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
 
-const isStep3Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
-
-const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirmTruth;
+const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
 
 
   const removeToast = (id: string) => {
@@ -534,9 +528,9 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 {[
-                  { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
-                  { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
-                  { n: 3, label: 'Docs', done: isStep3Valid }
+                  { n: 1, label: 'Info', done: addUserStep > 1 || isStep1Valid },
+                  { n: 2, label: 'Docs', done: addUserStep > 2 || isStep2Valid },
+                  { n: 3, label: 'Review', done: canSubmit }
                 ].map((s, idx, arr) => (
                   <div key={s.n} className="flex items-center">
                     <div
