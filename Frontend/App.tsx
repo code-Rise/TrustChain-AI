@@ -104,9 +104,9 @@ const isStep1Valid =
   addUserData.country.trim().length > 0 &&
   addUserData.city.trim().length > 0;
 
-const isStep2Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
+const isStep2Valid = true;
 
-const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
+const canSubmit = isStep1Valid && addUserConfirmTruth;
 
 
   const removeToast = (id: string) => {
@@ -633,6 +633,18 @@ const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
                       className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
                     />
                   </div>
+
+                  <div className="pt-3 border-t border-slate-700">
+                    <label className="flex items-start gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={addUserConfirmTruth}
+                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                        className="mt-1 accent-emerald-500"
+                      />
+                      <span>I confirm that all the information provided is true and complete.</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
@@ -666,18 +678,6 @@ const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
                       <p className="text-emerald-400 font-medium text-xs">✓ {addUserFiles.repaymentProof && addUserFiles.momoStatements ? 'Uploaded' : 'Missing'}</p>
                     </div>
                   </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-700">
-                  <label className="flex items-start gap-2 text-sm text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={addUserConfirmTruth}
-                      onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                      className="mt-1 accent-emerald-500"
-                    />
-                    <span>I confirm that all the information provided is true and complete.</span>
-                  </label>
                 </div>
               </div>
             )}
