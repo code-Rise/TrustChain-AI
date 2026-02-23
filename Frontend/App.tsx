@@ -5,6 +5,7 @@ import { Globe } from './components/Globe';
 import { CountryMap } from './components/CountryMap';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
 import { MOCK_BORROWERS } from './utils/data';
+import api from './utils/api';
 import { Borrower } from './types';
 import {
   ShieldCheck,
@@ -29,7 +30,8 @@ import { Toast, ToastType } from './components/Toast';
 
 const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
-  const [borrowers] = useState<Borrower[]>(MOCK_BORROWERS);
+  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedCountryName, setSelectedCountryName] = useState<string | null>(null);
   const [geoJson, setGeoJson] = useState<any>(null);
@@ -45,7 +47,7 @@ const App: React.FC = () => {
   };
   // Add User Wizard State
 const [showAddUserWizard, setShowAddUserWizard] = useState(false);
-const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
+const [addUserStep, setAddUserStep] = useState<1 | 2 | 3 | 4>(1);
 
 const [addUserData, setAddUserData] = useState({
   fullNameOrBusiness: '',
@@ -56,8 +58,17 @@ const [addUserData, setAddUserData] = useState({
   monthlyIncomeOrRevenue: '',
   mobileMoneyUsage: '',
   repaymentHistory: '',
-  requestedCreditLimit: ''
+  requestedCreditLimit: '',
+  age: '25'
 });
+
+const [creditScoreResult, setCreditScoreResult] = useState<{
+  PD: number;
+  Credit_Score: number;
+  Risk_Level: string;
+} | null>(null);
+
+const [isCalculating, setIsCalculating] = useState(false);
 
 const [addUserFiles, setAddUserFiles] = useState({
   repaymentProof: null as File | null,
@@ -78,10 +89,12 @@ const resetAddUserWizard = () => {
     monthlyIncomeOrRevenue: '',
     mobileMoneyUsage: '',
     repaymentHistory: '',
-    requestedCreditLimit: ''
+    requestedCreditLimit: '',
+    age: '25'
   });
   setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
   setAddUserConfirmTruth(false);
+  setCreditScoreResult(null);
 };
 
 // Validation
@@ -206,6 +219,41 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
   useEffect(() => {
     setMounted(true);
 
+    const fetchBorrowers = async () => {
+      try {
+        const response = await api.get('/api/borrowers');
+        if (response.data.length > 0) {
+          // Map backend BorrowerResponse to frontend Borrower type
+          setBorrowers(response.data.map((b: any) => ({
+            id: `BRW-${b.borrower_id}`,
+            name: `${b.first_name} ${b.last_name}`,
+            location: {
+              lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
+              lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
+              city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
+              country: "Rwanda"
+            },
+            creditScore: b.decision === 'Approved' ? 750 : 500,
+            riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
+            spendingTrend: [65, 59, 80, 81, 56, 55, 40],
+            repaymentHistory: 95,
+            mobileMoneyUsage: 2500,
+            approved: b.decision === 'Approved',
+            maxLimit: b.loan_amount || 5000
+          })));
+        } else {
+          setBorrowers(MOCK_BORROWERS);
+        }
+      } catch (error) {
+        console.error("Failed to fetch borrowers:", error);
+        setBorrowers(MOCK_BORROWERS);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBorrowers();
+
     const geoJsonUrls = [
       'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',
       'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson',
@@ -233,13 +281,14 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
 
   if (!mounted) return null;
 
-  // Stats for the header
-  const totalUsers = borrowers.length;
-  const avgScore = Math.floor(borrowers.reduce((acc, b) => acc + b.creditScore, 0) / totalUsers);
-  const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
-
   return (
     <div className="relative w-full h-screen bg-slate-950 overflow-hidden text-white selection:bg-emerald-500/30">
+      {isLoading && (
+        <div className="absolute inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center">
+          <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+          <p className="font-tech text-emerald-400 animate-pulse tracking-widest text-sm">INITIALIZING TRUSTCHAIN AI...</p>
+        </div>
+      )}
 
       {/* 3D Scene Background */}
       <div className="absolute inset-0 z-0">
@@ -638,20 +687,20 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                     />
                   </div>
 
-                  <div className="pt-3 border-t border-slate-700">
-                    <label className="flex items-start gap-2 text-sm text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={addUserConfirmTruth}
-                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                        className="mt-1 accent-emerald-500"
-                      />
-                      <span>I confirm that all the information provided is true and complete.</span>
-                    </label>
+                      <div className="pt-3 border-t border-slate-200">
+                        <label className="flex items-start gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={addUserConfirmTruth}
+                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                            className="mt-1"
+                          />
+                          <span>I confirm that all the information provided is true and complete.</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
             {/* Navigation */}
             <div className="mt-6 flex items-center justify-between">
@@ -663,99 +712,55 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-              {addUserStep < 3 ? (
-                <button
-                  onClick={() => {
-                    if (addUserStep === 1 && !isStep1Valid) return;
-                    if (addUserStep === 2 && !isStep2Valid) return;
-                    setAddUserStep(prev => (prev + 1) as any);
-                  }}
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-all"
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (!canSubmit) return;
-                    addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
-                    resetAddUserWizard();
-                  }}
-                  disabled={!canSubmit}
-                  className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                    canSubmit
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                      : 'bg-emerald-600/30 text-white/40 cursor-not-allowed'
-                  }`}
-                >
-                  Submit
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
-        {!selectedBorrower ? (
-          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500">
-
-            {(() => {
-// If country selected but no regional stats (no borrowers), show empty state
-              if (selectedCountryName && !regionalStats) {
-                return (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
-                    <div className="p-3 bg-slate-800/50 rounded-full mb-3">
-                      <Users className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <h3 className="font-tech text-lg font-bold text-slate-400 mb-1">{selectedCountryName}</h3>
-                    <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
-                      No active credit entities currently monitored in this region.
-                    </p>
-                  </div>
-                );
-              }
-
-              const stats = (selectedCountryName && regionalStats) ? regionalStats : globalStats;
-              if (!stats) return null;
-
-              return (
-                <>
-                  
-             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
-                </h3>
-
-                {!selectedCountryName && (
-                  <button
-                    onClick={() => setShowAddUserWizard(true)}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all shadow-md hover:shadow-lg"
-                    title="Add user"
-                  >
-                    <Plus className="w-4 h-4 text-emerald-400" />
-                  </button>
-                )}
-              </div>
-
-                {/* Initially Existing report UI AS IT WAS  */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                    <div className="font-mono text-emerald-400 font-bold text-lg">
-                      ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
-                  </div>
-                  <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
-                    <div className="font-mono text-red-400 font-bold text-lg">
-                      {stats.highestRisk?.creditScore || '-'}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
-                  </div>
-                </div>
+                          {addUserStep < 3 ? (
+                            <button
+                              onClick={() => {
+                                if (addUserStep === 1 && !isStep1Valid) return;
+                                if (addUserStep === 2 && !isStep2Valid) return;
+                                setAddUserStep(prev => (prev + 1) as any);
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+                            >
+                              Next <ChevronRight className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (!canSubmit) return;
+                                addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted for review`, 'success');
+                                resetAddUserWizard();
+                              }}
+                              disabled={!canSubmit}
+                              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                                canSubmit
+                                  ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
+                                  : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
+                              }`}
+                            >
+                              Submit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Initially Existing report UI AS IT WAS  */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                            <div className="font-mono text-emerald-400 font-bold text-lg">
+                              ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
+                          </div>
+                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                            <div className="font-mono text-red-400 font-bold text-lg">
+                              {stats.highestRisk?.creditScore || '-'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
+                          </div>
+                        </div>
 
                 <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
                   {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
