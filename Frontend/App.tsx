@@ -126,6 +126,37 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
   };
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Function to fetch borrowers
+  const fetchBorrowers = async () => {
+    try {
+      const response = await api.get('/api/borrowers');
+      if (response.data.length > 0) {
+        setBorrowers(response.data.map((b: any) => ({
+          id: `BRW-${b.borrower_id}`,
+          name: `${b.first_name} ${b.last_name}`,
+          location: {
+            lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
+            lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
+            city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
+            country: "Rwanda"
+          },
+          creditScore: b.decision === 'Approved' ? 750 : 500,
+          riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
+          spendingTrend: [65, 59, 80, 81, 56, 55, 40],
+          repaymentHistory: 95,
+          mobileMoneyUsage: 2500,
+          approved: b.decision === 'Approved',
+          maxLimit: b.loan_amount || 5000
+        })));
+      } else {
+        setBorrowers(MOCK_BORROWERS);
+      }
+    } catch (error) {
+      console.error("Failed to fetch borrowers:", error);
+      setBorrowers(MOCK_BORROWERS);
+    }
+  };
+
   // Derived list of unique countries from the data for search suggestions
   const availableCountries = useMemo(() => {
     const countries = new Set(borrowers.map(b => b.location.country));
@@ -206,40 +237,12 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
   useEffect(() => {
     setMounted(true);
 
-    const fetchBorrowers = async () => {
-      try {
-        const response = await api.get('/api/borrowers');
-        if (response.data.length > 0) {
-          // Map backend BorrowerResponse to frontend Borrower type
-          setBorrowers(response.data.map((b: any) => ({
-            id: `BRW-${b.borrower_id}`,
-            name: `${b.first_name} ${b.last_name}`,
-            location: {
-              lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
-              lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
-              city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
-              country: "Rwanda"
-            },
-            creditScore: b.decision === 'Approved' ? 750 : 500,
-            riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
-            spendingTrend: [65, 59, 80, 81, 56, 55, 40],
-            repaymentHistory: 95,
-            mobileMoneyUsage: 2500,
-            approved: b.decision === 'Approved',
-            maxLimit: b.loan_amount || 5000
-          })));
-        } else {
-          setBorrowers(MOCK_BORROWERS);
-        }
-      } catch (error) {
-        console.error("Failed to fetch borrowers:", error);
-        setBorrowers(MOCK_BORROWERS);
-      } finally {
-        setIsLoading(false);
-      }
+    const loadData = async () => {
+      await fetchBorrowers();
+      setIsLoading(false);
     };
 
-    fetchBorrowers();
+    loadData();
 
     const geoJsonUrls = [
       'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',
@@ -726,6 +729,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                       });
                       addToast(`New entity "${addUserData.fullNameOrBusiness}" submitted successfully`, 'success');
                       resetAddUserWizard();
+                      await fetchBorrowers();
                     } catch (error) {
                       console.error('Failed to submit:', error);
                       addToast('Failed to submit. Please try again.', 'error');
