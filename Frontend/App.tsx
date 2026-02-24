@@ -790,7 +790,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                                   resetAddUserWizard();
                                 } catch (err) {
                                   console.error("Submission failed", err);
-                                  addToast("Failed to submit data to backend.", "error");
+                                  addToast("Backend server not available. Please start the server on port 8000.", "error");
                                 }
                               }}
                               className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg"
@@ -798,57 +798,14 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                               Finalize & Submit
                             </button>
                           )}
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Initially Existing report UI AS IT WAS  */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                            <div className="font-mono text-emerald-400 font-bold text-lg">
-                              ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
-                          </div>
-                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
-                            <div className="font-mono text-red-400 font-bold text-lg">
-                              {stats.highestRisk?.creditScore || '-'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
-                          </div>
-                        </div>
-
-                <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
-                  {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
-                </h4>
-                <div className="space-y-2">
-                  {stats.topRisky.map(b => (
-                    <div
-                      key={b.id}
-                      onClick={() => setSelectedBorrower(b)}
-                      className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
-                        <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
-                        <div className="text-[10px] text-slate-600">SCORE</div>
-                      </div>
-                    </div>
-                  ))}
-                  {stats.topRisky.length === 0 && (
-                    <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
-                  )}
-                </div>
-              </>
-            );
-            })()}
+            </div>
           </div>
-        ) : (
+        </div>
+      )}
+
+      {/* Right Panel - Borrower Detail OR Global/Regional Report */}
+      <aside className="absolute top-24 right-6 w-96 max-h-[85vh] flex flex-col gap-4 z-20 overflow-y-auto custom-scrollbar">
+        {showAddUserWizard ? null : selectedBorrower ? (
           <div className="bg-slate-900/90 backdrop-blur-xl border border-emerald-500/30 rounded-xl overflow-hidden shadow-2xl shadow-emerald-900/20 pointer-events-auto">
 
             {/* Header with Close */}
@@ -922,8 +879,131 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
               </button>
             </div>
           </div>
-        )}
+        ) : (() => {
+          const stats = selectedCountryName ? regionalStats : globalStats;
+          if (!stats) return null;
+          
+          return (
+            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto">
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                  <div className="font-mono text-emerald-400 font-bold text-lg">
+                    ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
+                </div>
+                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                  <div className="font-mono text-red-400 font-bold text-lg">
+                    {stats.highestRisk?.creditScore || '-'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
+                </div>
+              </div>
+
+              <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
+                {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
+              </h4>
+              <div className="space-y-2">
+                {stats.topRisky.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => setSelectedBorrower(b)}
+                    className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
+                      <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
+                      <div className="text-[10px] text-slate-600">SCORE</div>
+                    </div>
+                  </div>
+                ))}
+                {stats.topRisky.length === 0 && (
+                  <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </aside>
+
+      {/* Add User Button */}
+      <button
+        onClick={() => setShowAddUserWizard(true)}
+        className="absolute bottom-24 right-6 z-30 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 pointer-events-auto"
+        title="Add New Entity"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Bottom Center Compact Stats Bar */}
+      {(() => {
+        const totalUsers = borrowers.length;
+        const avgScore = borrowers.length > 0 ? Math.floor(borrowers.reduce((sum, b) => sum + b.creditScore, 0) / borrowers.length) : 0;
+        const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
+        
+        return (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
+            <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
+              {/* TA */}
+              <div className="relative group flex items-center gap-2">
+                <Users className="w-4 h-4 text-slate-400" />
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
+                  <span className="font-mono font-bold text-sm text-white">
+                    {totalUsers.toLocaleString()}
+                  </span>
+                </div>
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                    Total Active
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-slate-700/50" />
+
+              {/* AS */}
+              <div className="relative group flex items-center gap-2">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
+                  <span className="font-mono font-bold text-sm text-cyan-400">
+                    {avgScore}
+                  </span>
+                </div>
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                    Average Score
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-slate-700/50" />
+
+              {/* HR */}
+              <div className="relative group flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
+                  <span className="font-mono font-bold text-sm text-red-400">
+                    {highRiskCount}
+                  </span>
+                </div>
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                    High Risk
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODAL: Full Report */}
       <Modal
@@ -1031,70 +1111,6 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
           />
         ))}
       </div>
-        {/* Bottom Center Compact Stats Bar */}
-<div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
-  <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
-
-    {/* TA */}
-    <div className="relative group flex items-center gap-2">
-      <Users className="w-4 h-4 text-slate-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
-        <span className="font-mono font-bold text-sm text-white">
-          {totalUsers.toLocaleString()}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          Total Active
-        </div>
-      </div>
-    </div>
-
-    <div className="w-px h-6 bg-slate-700/50" />
-
-    {/* AS */}
-    <div className="relative group flex items-center gap-2">
-      <Activity className="w-4 h-4 text-cyan-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
-        <span className="font-mono font-bold text-sm text-cyan-400">
-          {avgScore}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          Average Score
-        </div>
-      </div>
-    </div>
-
-    <div className="w-px h-6 bg-slate-700/50" />
-
-    {/* HR */}
-    <div className="relative group flex items-center gap-2">
-      <AlertTriangle className="w-4 h-4 text-red-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
-        <span className="font-mono font-bold text-sm text-red-400">
-          {highRiskCount}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          High Risk
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
 
       {/* Footer / System Status */}
       <footer className="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">
