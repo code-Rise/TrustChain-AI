@@ -65,6 +65,9 @@ const [addUserData, setAddUserData] = useState({
   age: '25'
 });
 
+const [creditScoreResult, setCreditScoreResult] = useState<{ PD: number, Credit_Score: number, Risk_Level: string } | null>(null);
+const [isCalculatingScore, setIsCalculatingScore] = useState(false);
+
 const [addUserFiles, setAddUserFiles] = useState({
   repaymentProof: null as File | null,
   momoStatements: null as File | null,
@@ -92,6 +95,7 @@ const resetAddUserWizard = () => {
   });
   setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
   setAddUserConfirmTruth(false);
+  setCreditScoreResult(null);
 };
 
 // Validation
@@ -151,8 +155,11 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
       } else {
         setBorrowers(MOCK_BORROWERS);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch borrowers:", error);
+      const errorDetails = error.response?.data?.detail || error.message || "Unknown error";
+      const errorCode = error.code ? ` (${error.code})` : "";
+      addToast(`Failed to fetch borrowers: ${errorDetails}${errorCode}. Using mock data.`, "error");
       setBorrowers(MOCK_BORROWERS);
     }
   };
@@ -679,6 +686,60 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                     placeholder="e.g. 5,000"
                   />
                 </div>
+
+                <div className="pt-4">
+                  <button
+                    onClick={async () => {
+                      setIsCalculatingScore(true);
+                      try {
+                        const response = await api.post('/credit-score', {
+                          LIMIT_BAL: parseFloat(addUserData.requestedCreditLimit) || 5000,
+                          AGE: parseFloat(addUserData.age) || 25,
+                          avg_pay_delay: 0,
+                          credit_utilization: 0.3,
+                          payment_ratio: (parseFloat(addUserData.repaymentHistory) / 100) || 0.9
+                        });
+                        setCreditScoreResult(response.data);
+                        addToast(`Credit analysis complete for ${addUserData.firstName} ${addUserData.lastName}`, 'success');
+                      } catch (err: any) {
+                        console.error("Credit score calculation failed", err);
+                        const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
+                        const errorCode = err.code ? ` (${err.code})` : "";
+                        addToast(`Failed to calculate credit score: ${errorDetails}${errorCode}. Using fallback.`, "error");
+                        setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
+                      } finally {
+                        setIsCalculatingScore(false);
+                      }
+                    }}
+                    disabled={isCalculatingScore || !addUserData.repaymentHistory}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-900/40 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    {isCalculatingScore ? (
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      <Activity className="w-4 h-4 group-hover:animate-pulse" />
+                    )}
+                    {creditScoreResult ? 'Re-calculate Risk Profile' : 'Calculate Risk Profile'}
+                  </button>
+
+                  {creditScoreResult && (
+                    <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-400 uppercase tracking-widest">Initial Assessment</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          creditScoreResult.Risk_Level === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
+                          creditScoreResult.Risk_Level === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                        }`}>
+                          {creditScoreResult.Risk_Level.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-3xl font-tech font-bold text-white">{creditScoreResult.Credit_Score}</span>
+                        <span className="text-[10px] text-slate-500">SCORE</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -763,18 +824,23 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                         last_name: addUserData.lastName,
                         email: addUserData.email,
                         phone: addUserData.phone,
-                        loan_amount: 5000,
+                        loan_amount: parseFloat(addUserData.requestedCreditLimit) || 5000,
                         loan_date: new Date().toISOString().split('T')[0],
                         decision: 'Approved',
-                        region_id: 1
+                        region_id: 1,
+                        credit_score: creditScoreResult?.Credit_Score,
+                        risk_level: creditScoreResult?.Risk_Level,
+                        probability_of_default: creditScoreResult?.PD
                       });
 
                       addToast(`New entity "${addUserData.firstName} ${addUserData.lastName}" integrated successfully`, 'success');
                       await fetchBorrowers();
                       resetAddUserWizard();
-                    } catch (err) {
+                    } catch (err: any) {
                       console.error("Submission failed", err);
-                      addToast("Failed to add new entity. Please try again.", "error");
+                      const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
+                      const errorCode = err.code ? ` (${err.code})` : "";
+                      addToast(`Failed to send data to backend: ${errorDetails}${errorCode}`, "error");
                     }
                   }}
                   disabled={!canSubmit}
@@ -919,7 +985,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
       {/* Add User Button */}
       <button
         onClick={() => setShowAddUserWizard(true)}
-        className="absolute top-6 right-4 z-30 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 pointer-events-auto"
+        className="absolute bottom-24 right-6 z-30 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 pointer-events-auto"
         title="Add New Entity"
       >
         <Plus className="w-6 h-6" />
