@@ -327,10 +327,14 @@ def credit_score_endpoint(data: Borrower):
     else:
         risk = "Low"
 
+    # Trust decision — deny if score is 450 or below
+    trust_decision = "Denied" if score <= 450 else "Approved"
+
     return {
         "PD": round(float(pd_prob), 2),
         "Credit_Score": score,
-        "Risk_Level": risk
+        "Risk_Level": risk,
+        "Trust_Decision": trust_decision
     }
 
 @app.get("/")
