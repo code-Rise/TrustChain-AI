@@ -28,6 +28,7 @@ import { Modal } from './components/Modal';
 import { Toast, ToastType } from './components/Toast';
 import { add } from 'three/tsl';
 
+
 const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
@@ -149,13 +150,13 @@ const App: React.FC = () => {
             city: b.city || "Unknown City",
             country: b.region_name || "Unknown Country"
           },
-          creditScore: b.credit_score || 0,
+          creditScore: b.credit_score || 500,
           riskLevel: b.risk_level || 'Medium',
           spendingTrend: [65, 59, 80, 81, 56, 55, 40],
           repaymentHistory: 95,
           mobileMoneyUsage: 2500,
           approved: b.decision === 'Approved',
-          maxLimit: b.loan_amount || 0
+          maxLimit: b.loan_amount || 5000
         })));
       } else {
         setBorrowers([]);
@@ -335,7 +336,11 @@ const App: React.FC = () => {
       <header className="absolute top-0 left-0 w-full z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg backdrop-blur-sm">
-            <Globe2 className="w-6 h-6 text-emerald-400" />
+            <img
+              src="public/favicon.png"
+              alt="TrustChain AI Logo"
+              className="w-6 h-6"
+            />
           </div>
           <div>
             <h1 className="font-tech text-2xl font-bold tracking-wider text-white">TRUSTCHAIN<span className="text-emerald-400"> AI</span></h1>
@@ -840,7 +845,8 @@ const App: React.FC = () => {
                         loan_amount: parseFloat(addUserData.requestedCreditLimit) || 5000,
                         loan_date: new Date().toISOString().split('T')[0],
                         decision: 'Approved',
-                        region_id: 1,
+                        country: addUserData.country,
+                        city: addUserData.city,
                         credit_score: creditScoreResult?.Credit_Score,
                         risk_level: creditScoreResult?.Risk_Level,
                         probability_of_default: creditScoreResult?.PD
@@ -933,7 +939,7 @@ const App: React.FC = () => {
                   : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
                   }`}
               >
-               f {selectedBorrower.approved ? (
+                {selectedBorrower.approved ? (
                   <>
                     <CheckCircle className="w-3 h-3" /> Approved
                   </>
@@ -952,8 +958,8 @@ const App: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                  <div className="font-mono text-emerald-400 font-bold text-lg">
-                    ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                  <div className="font-mono text-emerald-400 font-bold text-lg truncate">
+                    ${(stats.highestLimit?.maxLimit || 0).toLocaleString()}
                   </div>
                   <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
                 </div>
