@@ -342,10 +342,8 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg backdrop-blur-sm">
             <img
-              src="/public/favicon.png"
+              src="Frontend/Public/logo.png"
               alt="TrustChain AI Logo"
-              width={48}
-              height={48}
             />
           </div>
           <div>
