@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Modal } from './components/Modal';
 import { Toast, ToastType } from './components/Toast';
+import { add } from 'three/tsl';
 
 const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
@@ -45,71 +46,76 @@ const App: React.FC = () => {
     setToasts(prev => [...prev, { id, message, type }]);
   };
   // Add User Wizard State
-const [showAddUserWizard, setShowAddUserWizard] = useState(false);
-const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
+  const [showAddUserWizard, setShowAddUserWizard] = useState(false);
+  const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
 
-const [addUserData, setAddUserData] = useState({
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
-  country: '',
-  city: '',
-
-  monthlyIncomeOrRevenue: '',
-  mobileMoneyUsage: '',
-  repaymentHistory: '',
-  requestedCreditLimit: '',
-  age: '25'
-});
-
-const [creditScoreResult, setCreditScoreResult] = useState<{ PD: number, Credit_Score: number, Risk_Level: string } | null>(null);
-const [isCalculatingScore, setIsCalculatingScore] = useState(false);
-
-const [addUserFiles, setAddUserFiles] = useState({
-  repaymentProof: null as File | null,
-  momoStatements: null as File | null,
-  otherDocs: null as File | null
-});
-
-const [addUserConfirmTruth, setAddUserConfirmTruth] = useState(false);
-
-const resetAddUserWizard = () => {
-  setShowAddUserWizard(false);
-  setAddUserStep(1);
-  setAddUserData({
+  const [addUserData, setAddUserData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    entityType: '',
+    entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
     country: '',
     city: '',
     monthlyIncomeOrRevenue: '',
     mobileMoneyUsage: '',
     repaymentHistory: '',
     requestedCreditLimit: '',
-    age: '25'
+    age: '25',
+    averagePayDelay: '0',
+    paymentRatio: '0',
+    creditUtilization: '0',
   });
-  setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
-  setAddUserConfirmTruth(false);
-  setCreditScoreResult(null);
-};
 
-// Validation
-const isStep1Valid =
-  addUserData.firstName.trim().length > 0 &&
-  addUserData.lastName.trim().length > 0 &&
-  addUserData.email.trim().length > 0 &&
-  addUserData.phone.trim().length > 0 &&
-  addUserData.entityType !== '' &&
-  addUserData.country.trim().length > 0 &&
-  addUserData.city.trim().length > 0;
+  const [creditScoreResult, setCreditScoreResult] = useState<{ PD: number, Credit_Score: number, Risk_Level: string } | null>(null);
+  const [isCalculatingScore, setIsCalculatingScore] = useState(false);
 
-const isStep2Valid = true;
+  const [addUserFiles, setAddUserFiles] = useState({
+    repaymentProof: null as File | null,
+    momoStatements: null as File | null,
+    otherDocs: null as File | null
+  });
 
-const canSubmit = isStep1Valid && addUserConfirmTruth;
+  const [addUserConfirmTruth, setAddUserConfirmTruth] = useState(false);
+
+  const resetAddUserWizard = () => {
+    setShowAddUserWizard(false);
+    setAddUserStep(1);
+    setAddUserData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      entityType: '',
+      country: '',
+      city: '',
+      monthlyIncomeOrRevenue: '',
+      mobileMoneyUsage: '',
+      repaymentHistory: '',
+      requestedCreditLimit: '',
+      age: '25',
+      averagePayDelay: '0',
+      paymentRatio: '0',
+      creditUtilization: '0'
+    });
+    setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
+    setAddUserConfirmTruth(false);
+    setCreditScoreResult(null);
+  };
+
+  // Validation
+  const isStep1Valid =
+    addUserData.firstName.trim().length > 0 &&
+    addUserData.lastName.trim().length > 0 &&
+    addUserData.email.trim().length > 0 &&
+    addUserData.phone.trim().length > 0 &&
+    addUserData.entityType !== '' &&
+    addUserData.country.trim().length > 0 &&
+    addUserData.city.trim().length > 0;
+
+  const isStep2Valid = true;
+
+  const canSubmit = isStep1Valid && addUserConfirmTruth;
 
 
   const removeToast = (id: string) => {
@@ -532,17 +538,15 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                   <React.Fragment key={s.n}>
                     <div className="flex flex-col items-center">
                       <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all ${
-                          addUserStep === s.n ? 'bg-emerald-500 text-white border-emerald-500' :
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all ${addUserStep === s.n ? 'bg-emerald-500 text-white border-emerald-500' :
                           s.done ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' :
-                          'bg-slate-800 text-slate-400 border-slate-700'
-                        }`}
+                            'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}
                       >
                         {s.n}
                       </div>
-                      <span className={`text-[10px] mt-1 font-medium ${
-                        addUserStep === s.n ? 'text-emerald-400' : 'text-slate-500'
-                      }`}>{s.label}</span>
+                      <span className={`text-[10px] mt-1 font-medium ${addUserStep === s.n ? 'text-emerald-400' : 'text-slate-500'
+                        }`}>{s.label}</span>
                     </div>
                     {idx < arr.length - 1 && (
                       <div className={`w-12 h-[2px] mx-2 mb-4 transition-all ${s.done ? 'bg-emerald-500' : 'bg-slate-700'}`} />
@@ -582,6 +586,18 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                       placeholder="e.g. Kayigamba"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">age</label>
+                  <input
+                    type="number"
+                    value={addUserData.age}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, age: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 25"
+                    min={18}
+                  />
                 </div>
 
                 <div>
@@ -646,38 +662,37 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
             {addUserStep === 2 && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
+                  <label className="text-xs font-semibold text-slate-300">Average pay delay</label>
                   <input
-                    value={addUserData.monthlyIncomeOrRevenue}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
+                    value={addUserData.averagePayDelay}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, averagePayDelay: e.target.value }))}
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. 1,200"
+                    placeholder="e.g. 5,000"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
+                  <label className="text-xs font-semibold text-slate-300">Payment Ratio</label>
                   <input
-                    value={addUserData.mobileMoneyUsage}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
+                    value={addUserData.paymentRatio}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, paymentRatio: e.target.value }))}
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. 400"
+                    placeholder="e.g. 5,000"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
+                  <label className="text-xs font-semibold text-slate-300">Credit Utilization</label>
                   <input
-                    value={addUserData.repaymentHistory}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
+                    value={addUserData.creditUtilization}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, creditUtilization: e.target.value }))}
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="0 - 100"
+                    placeholder="e.g. 5,000"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
+                  <label className="text-xs font-semibold text-slate-300">Credit Limit</label>
                   <input
                     value={addUserData.requestedCreditLimit}
                     onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
@@ -694,8 +709,8 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                         const response = await api.post('/credit-score', {
                           LIMIT_BAL: parseFloat(addUserData.requestedCreditLimit) || 5000,
                           AGE: parseFloat(addUserData.age) || 25,
-                          avg_pay_delay: 0,
-                          credit_utilization: 0.3,
+                          avg_pay_delay: addUserData.averagePayDelay ? parseFloat(addUserData.averagePayDelay) : 0.5,
+                          credit_utilization: addUserData.creditUtilization ? parseFloat(addUserData.creditUtilization) : 0.5,
                           payment_ratio: (parseFloat(addUserData.repaymentHistory) / 100) || 0.9
                         });
                         setCreditScoreResult(response.data);
@@ -710,7 +725,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                         setIsCalculatingScore(false);
                       }
                     }}
-                    disabled={isCalculatingScore || !addUserData.repaymentHistory}
+                    disabled={isCalculatingScore}
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-900/40 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center gap-2 group"
                   >
                     {isCalculatingScore ? (
@@ -725,10 +740,9 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                     <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-400 uppercase tracking-widest">Initial Assessment</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          creditScoreResult.Risk_Level === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${creditScoreResult.Risk_Level === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
                           creditScoreResult.Risk_Level === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
-                        }`}>
+                          }`}>
                           {creditScoreResult.Risk_Level.toUpperCase()}
                         </span>
                       </div>
@@ -932,7 +946,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
         ) : (() => {
           const stats = selectedCountryName ? regionalStats : globalStats;
           if (!stats) return null;
-          
+
           return (
             <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto">
               <div className="grid grid-cols-2 gap-3 mb-6">
@@ -995,7 +1009,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
         const totalUsers = borrowers.length;
         const avgScore = borrowers.length > 0 ? Math.floor(borrowers.reduce((sum, b) => sum + b.creditScore, 0) / borrowers.length) : 0;
         const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
-        
+
         return (
           <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
             <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
