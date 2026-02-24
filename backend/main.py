@@ -61,6 +61,10 @@ class BorrowerCreate(BaseModel):
     loan_date: Optional[date] = None
     decision: Optional[str] = "Pending"
     region_id: Optional[int] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     credit_score: Optional[int] = None
     risk_level: Optional[str] = None
     probability_of_default: Optional[float] = None
@@ -139,12 +143,42 @@ app.add_middleware(
 
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
 def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
-    borrower_data = borrower.dict()
     # Generate unique email if not provided
-    if not borrower_data.get('email'):
-        borrower_data['email'] = f"{borrower_data['first_name'].lower()}.{borrower_data['last_name'].lower()}@trustchain.local"
+    email = borrower.email
+    if not email:
+        email = f"{borrower.first_name.lower()}.{borrower.last_name.lower()}@trustchain.local"
     
-    db_borrower = models.Borrower(**borrower_data)
+    # Handle Region (Search by country name)
+    region_id = borrower.region_id
+    if borrower.country:
+        region = db.query(models.Region).filter(models.Region.region_name == borrower.country).first()
+        if not region:
+            lat, lng = geocoder.get_coordinates(borrower.country)
+            region = models.Region(
+                region_name=borrower.country,
+                latitude=borrower.latitude if borrower.latitude else lat,
+                longitude=borrower.longitude if borrower.longitude else lng
+            )
+            db.add(region)
+            db.commit()
+            db.refresh(region)
+        region_id = region.region_id
+
+    # Create borrower
+    db_borrower = models.Borrower(
+        first_name=borrower.first_name,
+        last_name=borrower.last_name,
+        email=email,
+        phone=borrower.phone,
+        loan_amount=borrower.loan_amount,
+        loan_date=borrower.loan_date if borrower.loan_date else date.today(),
+        decision=borrower.decision,
+        region_id=region_id,
+        city=borrower.city,
+        credit_score=borrower.credit_score,
+        risk_level=borrower.risk_level,
+        probability_of_default=borrower.probability_of_default
+    )
     db.add(db_borrower)
     db.commit()
     db.refresh(db_borrower)
