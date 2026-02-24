@@ -68,7 +68,7 @@ const App: React.FC = () => {
     creditUtilization: '0',
   });
 
-  const [creditScoreResult, setCreditScoreResult] = useState<{ PD: number, Credit_Score: number, Risk_Level: string } | null>(null);
+  const [creditScoreResult, setCreditScoreResult] = useState<{ PD: number, Credit_Score: number, Risk_Level: string, Trust_Decision: string } | null>(null);
   const [isCalculatingScore, setIsCalculatingScore] = useState(false);
 
   const [addUserFiles, setAddUserFiles] = useState({
@@ -729,7 +729,7 @@ const App: React.FC = () => {
                         const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
                         const errorCode = err.code ? ` (${err.code})` : "";
                         addToast(`Failed to calculate credit score: ${errorDetails}${errorCode}. Using fallback.`, "error");
-                        setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
+                        setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low", Trust_Decision: "Approved" });
                       } finally {
                         setIsCalculatingScore(false);
                       }
@@ -745,22 +745,45 @@ const App: React.FC = () => {
                     {creditScoreResult ? 'Re-calculate Risk Profile' : 'Calculate Risk Profile'}
                   </button>
 
-                  {creditScoreResult && (
-                    <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-slate-400 uppercase tracking-widest">Initial Assessment</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${creditScoreResult.Risk_Level === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
-                          creditScoreResult.Risk_Level === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                  {creditScoreResult && (() => {
+                    const trustDecision = creditScoreResult.Trust_Decision ?? (creditScoreResult.Credit_Score <= 450 ? 'Denied' : 'Approved');
+                    const isDenied = trustDecision === 'Denied';
+                    return (
+                      <div className={`mt-4 p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 ${isDenied
+                        ? 'bg-red-500/10 border-red-500/40'
+                        : 'bg-emerald-500/10 border-emerald-500/30'
+                        }`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-slate-400 uppercase tracking-widest">Initial Assessment</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${creditScoreResult.Risk_Level === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
+                            creditScoreResult.Risk_Level === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                            }`}>
+                            {creditScoreResult.Risk_Level.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <span className="text-3xl font-tech font-bold text-white">{creditScoreResult.Credit_Score}</span>
+                          <span className="text-[10px] text-slate-500">SCORE</span>
+                        </div>
+                        <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm ${isDenied
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                          : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                           }`}>
-                          {creditScoreResult.Risk_Level.toUpperCase()}
-                        </span>
+                          {isDenied ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                              TRUST DENIED — Score ≤ 450
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                              TRUST APPROVED
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-3xl font-tech font-bold text-white">{creditScoreResult.Credit_Score}</span>
-                        <span className="text-[10px] text-slate-500">SCORE</span>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -867,7 +890,7 @@ const App: React.FC = () => {
                         phone: addUserData.phone,
                         loan_amount: parseFloat(addUserData.requestedCreditLimit) || 5000,
                         loan_date: new Date().toISOString().split('T')[0],
-                        decision: 'Approved',
+                        decision: creditScoreResult?.Trust_Decision ?? 'Approved',
                         country: addUserData.country,
                         city: addUserData.city,
                         credit_score: creditScoreResult?.Credit_Score,
