@@ -109,14 +109,18 @@ const App: React.FC = () => {
     addUserData.firstName.trim().length > 0 &&
     addUserData.lastName.trim().length > 0 &&
     addUserData.email.trim().length > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addUserData.email) &&
     addUserData.phone.trim().length > 0 &&
     addUserData.entityType !== '' &&
     addUserData.country.trim().length > 0 &&
-    addUserData.city.trim().length > 0;
+    addUserData.city.trim().length > 0 &&
+    parseInt(addUserData.age) >= 18;
 
-  const isStep2Valid = true;
+  const isStep2Valid =
+    addUserData.requestedCreditLimit.trim().length > 0 &&
+    parseFloat(addUserData.requestedCreditLimit) > 0;
 
-  const canSubmit = isStep1Valid && addUserConfirmTruth;
+  const canSubmit = isStep1Valid && isStep2Valid && addUserConfirmTruth;
 
 
   const removeToast = (id: string) => {
