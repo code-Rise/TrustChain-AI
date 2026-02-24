@@ -344,6 +344,8 @@ const App: React.FC = () => {
             <img
               src="/logo.png"
               alt="TrustChain AI Logo"
+              width={24}
+              height={24}
             />
           </div>
           <div>
