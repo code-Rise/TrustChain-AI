@@ -69,6 +69,8 @@ class UserRegistration(BaseModel):
     entityType: str
     country: str
     city: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class BorrowerResponse(BaseModel):
     borrower_id: int
@@ -83,6 +85,10 @@ class BorrowerResponse(BaseModel):
     credit_score: Optional[int] = None
     risk_level: Optional[str] = None
     probability_of_default: Optional[float] = None
+    region_name: Optional[str] = None
+    city: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -153,17 +159,27 @@ def register_user(user: UserRegistration, db: Session = Depends(get_db)):
     # Find or create region
     region = db.query(models.Region).filter(models.Region.region_name == user.country).first()
     if not region:
-        region = models.Region(region_name=user.country)
+        region = models.Region(
+            region_name=user.country,
+            latitude=user.latitude if user.latitude else -1.9441, # Default to Rwanda if none
+            longitude=user.longitude if user.longitude else 30.0619
+        )
         db.add(region)
         db.commit()
         db.refresh(region)
+    elif user.latitude and user.longitude:
+        # Update coordinates if provided and different
+        region.latitude = user.latitude
+        region.longitude = user.longitude
+        db.commit()
     
     # Create borrower
     db_borrower = models.Borrower(
         first_name=first_name,
         last_name=last_name,
         decision="Pending",
-        region_id=region.region_id
+        region_id=region.region_id,
+        city=user.city
     )
     db.add(db_borrower)
     db.commit()
@@ -183,14 +199,28 @@ def get_all_borrowers(
     db: Session = Depends(get_db)
 ):
     borrowers = db.query(models.Borrower).offset(skip).limit(limit).all()
-    return borrowers
+    results = []
+    for b in borrowers:
+        resp = BorrowerResponse.from_orm(b)
+        if b.region:
+            resp.region_name = b.region.region_name
+            resp.latitude = b.region.latitude
+            resp.longitude = b.region.longitude
+        results.append(resp)
+    return results
 
 @app.get("/api/borrowers/{borrower_id}", response_model=BorrowerResponse)
 def get_borrower_by_id(borrower_id: int, db: Session = Depends(get_db)):
     db_borrower = db.query(models.Borrower).filter(models.Borrower.borrower_id == borrower_id).first()
     if db_borrower is None:
         raise HTTPException(status_code=404, detail=f"Borrower with ID {borrower_id} not found")
-    return db_borrower
+    
+    resp = BorrowerResponse.from_orm(db_borrower)
+    if db_borrower.region:
+        resp.region_name = db_borrower.region.region_name
+        resp.latitude = db_borrower.region.latitude
+        resp.longitude = db_borrower.region.longitude
+    return resp
 
 @app.get("/api/stats/global")
 def get_global_stats(db: Session = Depends(get_db)):

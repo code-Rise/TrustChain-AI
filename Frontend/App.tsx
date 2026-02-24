@@ -139,10 +139,10 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
           id: `BRW-${b.borrower_id}`,
           name: `${b.first_name} ${b.last_name}`,
           location: {
-            lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
-            lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
-            city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
-            country: "Rwanda"
+            lat: b.latitude || -1.9441 + (Math.random() - 0.5) * 0.5,
+            lng: b.longitude || 30.0619 + (Math.random() - 0.5) * 0.5,
+            city: b.city || "Unknown City",
+            country: b.region_name || "Unknown Country"
           },
           creditScore: b.credit_score || (b.decision === 'Approved' ? 750 : 500),
           riskLevel: b.risk_level || (b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium'),
