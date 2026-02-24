@@ -827,8 +827,27 @@ const App: React.FC = () => {
               {addUserStep < 3 ? (
                 <button
                   onClick={() => {
-                    if (addUserStep === 1 && !isStep1Valid) return;
-                    if (addUserStep === 2 && !isStep2Valid) return;
+                    if (addUserStep === 1) {
+                      if (!isStep1Valid) {
+                        if (!addUserData.firstName.trim()) addToast('First name is required', 'error');
+                        else if (!addUserData.lastName.trim()) addToast('Last name is required', 'error');
+                        else if (!addUserData.email.trim()) addToast('Email is required', 'error');
+                        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addUserData.email)) addToast('Invalid email format', 'error');
+                        else if (!addUserData.phone.trim()) addToast('Phone is required', 'error');
+                        else if (!addUserData.entityType) addToast('Entity type is required', 'error');
+                        else if (!addUserData.country.trim()) addToast('Country is required', 'error');
+                        else if (!addUserData.city.trim()) addToast('City is required', 'error');
+                        else if (parseInt(addUserData.age) < 18) addToast('Age must be 18 or older', 'error');
+                        return;
+                      }
+                    }
+                    if (addUserStep === 2) {
+                      if (!isStep2Valid) {
+                        if (!addUserData.requestedCreditLimit.trim()) addToast('Credit limit is required', 'error');
+                        else if (parseFloat(addUserData.requestedCreditLimit) <= 0) addToast('Credit limit must be greater than 0', 'error');
+                        return;
+                      }
+                    }
                     setAddUserStep(prev => (prev + 1) as any);
                   }}
                   disabled={(addUserStep === 1 && !isStep1Valid) || (addUserStep === 2 && !isStep2Valid)}
