@@ -126,7 +126,12 @@ app.add_middleware(
 
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
 def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
-    db_borrower = models.Borrower(**borrower.dict())
+    borrower_data = borrower.dict()
+    # Generate unique email if not provided
+    if not borrower_data.get('email'):
+        borrower_data['email'] = f"{borrower_data['first_name'].lower()}.{borrower_data['last_name'].lower()}@trustchain.local"
+    
+    db_borrower = models.Borrower(**borrower_data)
     db.add(db_borrower)
     db.commit()
     db.refresh(db_borrower)
