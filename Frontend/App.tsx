@@ -919,7 +919,7 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                   : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
                   }`}
               >
-                {selectedBorrower.approved ? (
+               f {selectedBorrower.approved ? (
                   <>
                     <CheckCircle className="w-3 h-3" /> Approved
                   </>
