@@ -1004,7 +1004,7 @@ const App: React.FC = () => {
       {/* Add User Button */}
       <button
         onClick={() => setShowAddUserWizard(true)}
-        className="absolute bottom-24 right-6 z-30 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 pointer-events-auto"
+        className="absolute top-6 right-6 z-30 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 pointer-events-auto"
         title="Add New Entity"
       >
         <Plus className="w-6 h-6" />
