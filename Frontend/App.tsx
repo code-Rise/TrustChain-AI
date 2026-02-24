@@ -62,14 +62,6 @@ const [addUserData, setAddUserData] = useState({
   age: '25'
 });
 
-const [creditScoreResult, setCreditScoreResult] = useState<{
-  PD: number;
-  Credit_Score: number;
-  Risk_Level: string;
-} | null>(null);
-
-const [isCalculating, setIsCalculating] = useState(false);
-
 const [addUserFiles, setAddUserFiles] = useState({
   repaymentProof: null as File | null,
   momoStatements: null as File | null,
@@ -94,7 +86,6 @@ const resetAddUserWizard = () => {
   });
   setAddUserFiles({ repaymentProof: null, momoStatements: null, otherDocs: null });
   setAddUserConfirmTruth(false);
-  setCreditScoreResult(null);
 };
 
 // Validation
@@ -520,8 +511,8 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
               <div className="flex items-center gap-1">
                 {[
                   { n: 1, label: 'Info', done: addUserStep > 1 || isStep1Valid },
-                  { n: 2, label: 'Docs', done: addUserStep > 2 || isStep2Valid },
-                  { n: 3, label: 'Review', done: canSubmit }
+                  { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
+                  { n: 3, label: 'Docs', done: canSubmit }
                 ].map((s, idx, arr) => (
                   <React.Fragment key={s.n}>
                     <div className="flex flex-col items-center">
@@ -605,6 +596,51 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
             )}
 
             {addUserStep === 2 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
+                  <input
+                    value={addUserData.monthlyIncomeOrRevenue}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 1,200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
+                  <input
+                    value={addUserData.mobileMoneyUsage}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
+                  <input
+                    value={addUserData.repaymentHistory}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="0 - 100"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
+                  <input
+                    value={addUserData.requestedCreditLimit}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 5,000"
+                  />
+                </div>
+              </div>
+            )}
+
+            {addUserStep === 3 && (
               <div className="space-y-4">
                 <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
                   <Upload className="w-4 h-4 text-emerald-500" /> Upload Documents
@@ -653,39 +689,6 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
               </div>
             )}
 
-            {addUserStep === 3 && (
-              <div className="space-y-4">
-                <div className="text-center mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 mb-3">
-                    <CheckCircle className="w-8 h-8 text-emerald-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-1">Review Your Information</h3>
-                  <p className="text-xs text-slate-400">Please verify all details before submission</p>
-                </div>
-
-                <div className="bg-slate-950/50 rounded-lg border border-slate-700 p-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-slate-500 text-xs">Name/Business</span>
-                      <p className="text-white font-medium">{addUserData.fullNameOrBusiness}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 text-xs">Entity Type</span>
-                      <p className="text-white font-medium">{addUserData.entityType}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 text-xs">Location</span>
-                      <p className="text-white font-medium">{addUserData.city}, {addUserData.country}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 text-xs">Documents</span>
-                      <p className="text-emerald-400 font-medium text-xs">✓ {addUserFiles.repaymentProof && addUserFiles.momoStatements ? 'Uploaded' : 'Missing'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Navigation */}
             <div className="mt-6 flex items-center justify-between">
               <button
@@ -696,108 +699,51 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-                          {addUserStep < 3 ? (
-                            <button
-                              onClick={async () => {
-                                if (addUserStep === 1 && !isStep1Valid) return;
-                                if (addUserStep === 2 && !isStep2Valid) {
-                                   return;
-                                }
-                                if (addUserStep === 2) {
-                                  // Call Credit Score API when moving from Step 2
-                                  setIsCalculating(true);
-                                  try {
-                                    const response = await api.post('/credit-score', {
-                                      LIMIT_BAL: parseFloat(addUserData.requestedCreditLimit) || 0,
-                                      AGE: parseFloat(addUserData.age) || 25,
-                                      avg_pay_delay: 0, // Heuristic defaults for now
-                                      credit_utilization: 0.3,
-                                      payment_ratio: parseFloat(addUserData.repaymentHistory) / 100 || 0.9
-                                    });
-                                    setCreditScoreResult(response.data);
-                                    addToast(`Credit analysis complete for ${addUserData.fullNameOrBusiness}`, 'success');
-                                  } catch (err) {
-                                    console.error("Credit score calculation failed", err);
-                                    addToast("Failed to calculate credit score. Using default values.", "error");
-                                    // Fallback mock
-                                    setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
-                                  } finally {
-                                    setIsCalculating(false);
-                                  }
-                                }
-                                setAddUserStep(prev => (prev + 1) as any);
-                              }}
-                              disabled={isCalculating}
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              {isCalculating ? 'Processing...' : (
-                                <>Next <ChevronRight className="w-4 h-4" /></>
-                              )}
-                            </button>
-                          ) : addUserStep === 3 ? (
-                             <button
-                               onClick={() => setAddUserStep(4)}
-                               disabled={!canSubmit}
-                               className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                                 canSubmit
-                                   ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                                   : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
-                               }`}
-                             >
-                               Review Analysis
-                             </button>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                if (!canSubmit) return;
-                                try {
-                                  const names = addUserData.fullNameOrBusiness.split(' ');
-                                  const firstName = names[0] || "Unknown";
-                                  const lastName = names.slice(1).join(' ') || "User";
+              {addUserStep < 3 ? (
+                <button
+                  onClick={() => {
+                    if (addUserStep === 1 && !isStep1Valid) return;
+                    if (addUserStep === 2 && !isStep2Valid) return;
+                    setAddUserStep(prev => (prev + 1) as any);
+                  }}
+                  disabled={(addUserStep === 1 && !isStep1Valid) || (addUserStep === 2 && !isStep2Valid)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!canSubmit) return;
+                    try {
+                      const names = addUserData.fullNameOrBusiness.split(' ');
+                      const firstName = names[0] || "Unknown";
+                      const lastName = names.slice(1).join(' ') || "User";
 
-                                  await api.post('/api/borrowers', {
-                                    first_name: firstName,
-                                    last_name: lastName,
-                                    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-                                    loan_amount: parseFloat(addUserData.requestedCreditLimit),
-                                    loan_date: new Date().toISOString().split('T')[0],
-                                    decision: creditScoreResult?.Risk_Level === 'High' ? 'Denied' : 'Approved',
-                                    region_id: 1 // Default to Kigali
-                                  });
+                      await api.post('/api/borrowers', {
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+                        loan_amount: 5000,
+                        loan_date: new Date().toISOString().split('T')[0],
+                        decision: 'Approved',
+                        region_id: 1
+                      });
 
-                                  addToast(`New entity "${addUserData.fullNameOrBusiness}" integrated successfully`, 'success');
-
-                                  // Refresh borrowers list
-                                  const response = await api.get('/api/borrowers');
-                                  setBorrowers(response.data.map((b: any) => ({
-                                      id: `BRW-${b.borrower_id}`,
-                                      name: `${b.first_name} ${b.last_name}`,
-                                      location: {
-                                        lat: b.region_id === 1 ? -1.9441 + (Math.random() - 0.5) * 0.2 : -2.6000 + (Math.random() - 0.5) * 0.2,
-                                        lng: b.region_id === 1 ? 30.0619 + (Math.random() - 0.5) * 0.2 : 29.7333 + (Math.random() - 0.5) * 0.2,
-                                        city: b.region_id === 1 ? "Kigali" : "Huye",
-                                        country: "Rwanda"
-                                      },
-                                      creditScore: b.decision === 'Approved' ? 750 : 500,
-                                      riskLevel: b.decision === 'Approved' ? 'Low' : 'High',
-                                      spendingTrend: [65, 59, 80, 81, 56, 55, 40],
-                                      repaymentHistory: 95,
-                                      mobileMoneyUsage: 2500,
-                                      approved: b.decision === 'Approved',
-                                      maxLimit: b.loan_amount
-                                  })));
-
-                                  resetAddUserWizard();
-                                } catch (err) {
-                                  console.error("Submission failed", err);
-                                  addToast("Backend server not available. Please start the server on port 8000.", "error");
-                                }
-                              }}
-                              className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg"
-                            >
-                              Finalize & Submit
-                            </button>
-                          )}
+                      addToast(`New entity "${addUserData.fullNameOrBusiness}" integrated successfully`, 'success');
+                      await fetchBorrowers();
+                      resetAddUserWizard();
+                    } catch (err) {
+                      console.error("Submission failed", err);
+                      addToast("Failed to add new entity. Please try again.", "error");
+                    }
+                  }}
+                  disabled={!canSubmit}
+                  className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Submit
+                </button>
+              )}
             </div>
           </div>
         </div>
