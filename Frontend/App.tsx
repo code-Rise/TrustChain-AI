@@ -29,6 +29,7 @@ import { Toast, ToastType } from './components/Toast';
 import { add } from 'three/tsl';
 
 
+
 const App: React.FC = () => {
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
@@ -341,9 +342,10 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg backdrop-blur-sm">
             <img
-              src="Public/favicon.png"
+              src="/public/favicon.png"
               alt="TrustChain AI Logo"
-              className="w-6 h-6"
+              width={48}
+              height={48}
             />
           </div>
           <div>
