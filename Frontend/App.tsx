@@ -50,7 +50,10 @@ const [showAddUserWizard, setShowAddUserWizard] = useState(false);
 const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
 
 const [addUserData, setAddUserData] = useState({
-  fullNameOrBusiness: '',
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
   entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
   country: '',
   city: '',
@@ -74,7 +77,10 @@ const resetAddUserWizard = () => {
   setShowAddUserWizard(false);
   setAddUserStep(1);
   setAddUserData({
-    fullNameOrBusiness: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
     entityType: '',
     country: '',
     city: '',
@@ -90,7 +96,10 @@ const resetAddUserWizard = () => {
 
 // Validation
 const isStep1Valid =
-  addUserData.fullNameOrBusiness.trim().length > 0 &&
+  addUserData.firstName.trim().length > 0 &&
+  addUserData.lastName.trim().length > 0 &&
+  addUserData.email.trim().length > 0 &&
+  addUserData.phone.trim().length > 0 &&
   addUserData.entityType !== '' &&
   addUserData.country.trim().length > 0 &&
   addUserData.city.trim().length > 0;
@@ -548,13 +557,46 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
             {/* Step content */}
             {addUserStep === 1 && (
               <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">First Name</label>
+                    <input
+                      value={addUserData.firstName}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Iris"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Last Name</label>
+                    <input
+                      value={addUserData.lastName}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Kayigamba"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Full Name / Business Name</label>
+                  <label className="text-xs font-semibold text-slate-300">Email</label>
                   <input
-                    value={addUserData.fullNameOrBusiness}
-                    onChange={(e) => setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }))}
+                    type="email"
+                    value={addUserData.email}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, email: e.target.value }))}
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
+                    placeholder="e.g. iris@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Phone</label>
+                  <input
+                    type="tel"
+                    value={addUserData.phone}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. +250 123 456 789"
                   />
                 </div>
 
@@ -716,21 +758,18 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
                   onClick={async () => {
                     if (!canSubmit) return;
                     try {
-                      const names = addUserData.fullNameOrBusiness.split(' ');
-                      const firstName = names[0] || "Unknown";
-                      const lastName = names.slice(1).join(' ') || "User";
-
                       await api.post('/api/borrowers', {
-                        first_name: firstName,
-                        last_name: lastName,
-                        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+                        first_name: addUserData.firstName,
+                        last_name: addUserData.lastName,
+                        email: addUserData.email,
+                        phone: addUserData.phone,
                         loan_amount: 5000,
                         loan_date: new Date().toISOString().split('T')[0],
                         decision: 'Approved',
                         region_id: 1
                       });
 
-                      addToast(`New entity "${addUserData.fullNameOrBusiness}" integrated successfully`, 'success');
+                      addToast(`New entity "${addUserData.firstName} ${addUserData.lastName}" integrated successfully`, 'success');
                       await fetchBorrowers();
                       resetAddUserWizard();
                     } catch (err) {
