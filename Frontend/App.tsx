@@ -144,8 +144,8 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
             city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
             country: "Rwanda"
           },
-          creditScore: b.decision === 'Approved' ? 750 : 500,
-          riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
+          creditScore: b.credit_score || (b.decision === 'Approved' ? 750 : 500),
+          riskLevel: b.risk_level || (b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium'),
           spendingTrend: [65, 59, 80, 81, 56, 55, 40],
           repaymentHistory: 95,
           mobileMoneyUsage: 2500,

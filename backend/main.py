@@ -60,6 +60,9 @@ class BorrowerCreate(BaseModel):
     loan_date: Optional[date] = None
     decision: Optional[str] = "Pending"
     region_id: Optional[int] = None
+    credit_score: Optional[int] = None
+    risk_level: Optional[str] = None
+    probability_of_default: Optional[float] = None
 
 class UserRegistration(BaseModel):
     fullNameOrBusiness: str
@@ -77,6 +80,9 @@ class BorrowerResponse(BaseModel):
     loan_date: Optional[date] = None
     decision: Optional[str] = None
     region_id: Optional[int] = None
+    credit_score: Optional[int] = None
+    risk_level: Optional[str] = None
+    probability_of_default: Optional[float] = None
 
     class Config:
         from_attributes = True
