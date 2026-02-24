@@ -13,6 +13,7 @@ from sqlalchemy import func
 
 from db.database import SessionLocal, engine
 from models import models
+from utils import geocoder
 import uvicorn
  
 
@@ -159,10 +160,13 @@ def register_user(user: UserRegistration, db: Session = Depends(get_db)):
     # Find or create region
     region = db.query(models.Region).filter(models.Region.region_name == user.country).first()
     if not region:
+        # Get coordinates from geocoder if not provided
+        lat, lng = geocoder.get_coordinates(user.country)
+        
         region = models.Region(
             region_name=user.country,
-            latitude=user.latitude if user.latitude else -1.9441, # Default to Rwanda if none
-            longitude=user.longitude if user.longitude else 30.0619
+            latitude=user.latitude if user.latitude else lat,
+            longitude=user.longitude if user.longitude else lng
         )
         db.add(region)
         db.commit()

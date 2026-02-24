@@ -4,7 +4,6 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import { Globe } from './components/Globe';
 import { CountryMap } from './components/CountryMap';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
-import { MOCK_BORROWERS } from './utils/data';
 import api from './utils/api';
 import { Borrower } from './types';
 import {
@@ -144,23 +143,23 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
             city: b.city || "Unknown City",
             country: b.region_name || "Unknown Country"
           },
-          creditScore: b.credit_score || (b.decision === 'Approved' ? 750 : 500),
-          riskLevel: b.risk_level || (b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium'),
+          creditScore: b.credit_score || 0,
+          riskLevel: b.risk_level || 'Medium',
           spendingTrend: [65, 59, 80, 81, 56, 55, 40],
           repaymentHistory: 95,
           mobileMoneyUsage: 2500,
           approved: b.decision === 'Approved',
-          maxLimit: b.loan_amount || 5000
+          maxLimit: b.loan_amount || 0
         })));
       } else {
-        setBorrowers(MOCK_BORROWERS);
+        setBorrowers([]);
       }
     } catch (error: any) {
       console.error("Failed to fetch borrowers:", error);
       const errorDetails = error.response?.data?.detail || error.message || "Unknown error";
       const errorCode = error.code ? ` (${error.code})` : "";
-      addToast(`Failed to fetch borrowers: ${errorDetails}${errorCode}. Using mock data.`, "error");
-      setBorrowers(MOCK_BORROWERS);
+      addToast(`Failed to fetch borrowers: ${errorDetails}${errorCode}.`, "error");
+      setBorrowers([]);
     }
   };
 
