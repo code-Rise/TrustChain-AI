@@ -13,6 +13,7 @@ from sqlalchemy import func
 
 from db.database import SessionLocal, engine
 from models import models
+from utils import geocoder
 import uvicorn
  
 
@@ -60,12 +61,21 @@ class BorrowerCreate(BaseModel):
     loan_date: Optional[date] = None
     decision: Optional[str] = "Pending"
     region_id: Optional[int] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    credit_score: Optional[int] = None
+    risk_level: Optional[str] = None
+    probability_of_default: Optional[float] = None
 
 class UserRegistration(BaseModel):
     fullNameOrBusiness: str
     entityType: str
     country: str
     city: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class BorrowerResponse(BaseModel):
     borrower_id: int
@@ -77,6 +87,13 @@ class BorrowerResponse(BaseModel):
     loan_date: Optional[date] = None
     decision: Optional[str] = None
     region_id: Optional[int] = None
+    credit_score: Optional[int] = None
+    risk_level: Optional[str] = None
+    probability_of_default: Optional[float] = None
+    region_name: Optional[str] = None
+    city: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -126,12 +143,42 @@ app.add_middleware(
 
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
 def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
-    borrower_data = borrower.dict()
     # Generate unique email if not provided
-    if not borrower_data.get('email'):
-        borrower_data['email'] = f"{borrower_data['first_name'].lower()}.{borrower_data['last_name'].lower()}@trustchain.local"
+    email = borrower.email
+    if not email:
+        email = f"{borrower.first_name.lower()}.{borrower.last_name.lower()}@trustchain.local"
     
-    db_borrower = models.Borrower(**borrower_data)
+    # Handle Region (Search by country name)
+    region_id = borrower.region_id
+    if borrower.country:
+        region = db.query(models.Region).filter(models.Region.region_name == borrower.country).first()
+        if not region:
+            lat, lng = geocoder.get_coordinates(borrower.country)
+            region = models.Region(
+                region_name=borrower.country,
+                latitude=borrower.latitude if borrower.latitude else lat,
+                longitude=borrower.longitude if borrower.longitude else lng
+            )
+            db.add(region)
+            db.commit()
+            db.refresh(region)
+        region_id = region.region_id
+
+    # Create borrower
+    db_borrower = models.Borrower(
+        first_name=borrower.first_name,
+        last_name=borrower.last_name,
+        email=email,
+        phone=borrower.phone,
+        loan_amount=borrower.loan_amount,
+        loan_date=borrower.loan_date if borrower.loan_date else date.today(),
+        decision=borrower.decision,
+        region_id=region_id,
+        city=borrower.city,
+        credit_score=borrower.credit_score,
+        risk_level=borrower.risk_level,
+        probability_of_default=borrower.probability_of_default
+    )
     db.add(db_borrower)
     db.commit()
     db.refresh(db_borrower)
@@ -147,17 +194,30 @@ def register_user(user: UserRegistration, db: Session = Depends(get_db)):
     # Find or create region
     region = db.query(models.Region).filter(models.Region.region_name == user.country).first()
     if not region:
-        region = models.Region(region_name=user.country)
+        # Get coordinates from geocoder if not provided
+        lat, lng = geocoder.get_coordinates(user.country)
+        
+        region = models.Region(
+            region_name=user.country,
+            latitude=user.latitude if user.latitude else lat,
+            longitude=user.longitude if user.longitude else lng
+        )
         db.add(region)
         db.commit()
         db.refresh(region)
+    elif user.latitude and user.longitude:
+        # Update coordinates if provided and different
+        region.latitude = user.latitude
+        region.longitude = user.longitude
+        db.commit()
     
     # Create borrower
     db_borrower = models.Borrower(
         first_name=first_name,
         last_name=last_name,
         decision="Pending",
-        region_id=region.region_id
+        region_id=region.region_id,
+        city=user.city
     )
     db.add(db_borrower)
     db.commit()
@@ -177,14 +237,28 @@ def get_all_borrowers(
     db: Session = Depends(get_db)
 ):
     borrowers = db.query(models.Borrower).offset(skip).limit(limit).all()
-    return borrowers
+    results = []
+    for b in borrowers:
+        resp = BorrowerResponse.from_orm(b)
+        if b.region:
+            resp.region_name = b.region.region_name
+            resp.latitude = b.region.latitude
+            resp.longitude = b.region.longitude
+        results.append(resp)
+    return results
 
 @app.get("/api/borrowers/{borrower_id}", response_model=BorrowerResponse)
 def get_borrower_by_id(borrower_id: int, db: Session = Depends(get_db)):
     db_borrower = db.query(models.Borrower).filter(models.Borrower.borrower_id == borrower_id).first()
     if db_borrower is None:
         raise HTTPException(status_code=404, detail=f"Borrower with ID {borrower_id} not found")
-    return db_borrower
+    
+    resp = BorrowerResponse.from_orm(db_borrower)
+    if db_borrower.region:
+        resp.region_name = db_borrower.region.region_name
+        resp.latitude = db_borrower.region.latitude
+        resp.longitude = db_borrower.region.longitude
+    return resp
 
 @app.get("/api/stats/global")
 def get_global_stats(db: Session = Depends(get_db)):

@@ -4,7 +4,6 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import { Globe } from './components/Globe';
 import { CountryMap } from './components/CountryMap';
 import { CreditMixChart, BorrowerRadar, TrendChart } from './components/Charts';
-import { MOCK_BORROWERS } from './utils/data';
 import api from './utils/api';
 import { Borrower } from './types';
 import {
@@ -139,28 +138,28 @@ const canSubmit = isStep1Valid && addUserConfirmTruth;
           id: `BRW-${b.borrower_id}`,
           name: `${b.first_name} ${b.last_name}`,
           location: {
-            lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
-            lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
-            city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
-            country: "Rwanda"
+            lat: b.latitude || -1.9441 + (Math.random() - 0.5) * 0.5,
+            lng: b.longitude || 30.0619 + (Math.random() - 0.5) * 0.5,
+            city: b.city || "Unknown City",
+            country: b.region_name || "Unknown Country"
           },
-          creditScore: b.decision === 'Approved' ? 750 : 500,
-          riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
+          creditScore: b.credit_score || 0,
+          riskLevel: b.risk_level || 'Medium',
           spendingTrend: [65, 59, 80, 81, 56, 55, 40],
           repaymentHistory: 95,
           mobileMoneyUsage: 2500,
           approved: b.decision === 'Approved',
-          maxLimit: b.loan_amount || 5000
+          maxLimit: b.loan_amount || 0
         })));
       } else {
-        setBorrowers(MOCK_BORROWERS);
+        setBorrowers([]);
       }
     } catch (error: any) {
       console.error("Failed to fetch borrowers:", error);
       const errorDetails = error.response?.data?.detail || error.message || "Unknown error";
       const errorCode = error.code ? ` (${error.code})` : "";
-      addToast(`Failed to fetch borrowers: ${errorDetails}${errorCode}. Using mock data.`, "error");
-      setBorrowers(MOCK_BORROWERS);
+      addToast(`Failed to fetch borrowers: ${errorDetails}${errorCode}.`, "error");
+      setBorrowers([]);
     }
   };
 

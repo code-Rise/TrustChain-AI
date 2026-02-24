@@ -7,6 +7,8 @@ class Region(Base):
 
     region_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     region_name = Column(String(100), nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
 
     borrowers = relationship("Borrower", back_populates="region")
 
@@ -22,6 +24,10 @@ class Borrower(Base):
     loan_date = Column(Date)
     decision = Column(String(20), default="Pending") # Pending, Approved, Denied
     region_id = Column(Integer, ForeignKey("Region.region_id", ondelete="SET NULL"))
+    city = Column(String(100), nullable=True)
+    credit_score = Column(Integer, nullable=True)
+    risk_level = Column(String(20), nullable=True)
+    probability_of_default = Column(Float, nullable=True)
 
     region = relationship("Region", back_populates="borrowers")
     transactions = relationship("HistoricalTransaction", back_populates="borrower", cascade="all, delete-orphan")
