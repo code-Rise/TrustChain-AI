@@ -47,10 +47,13 @@ const App: React.FC = () => {
   };
   // Add User Wizard State
 const [showAddUserWizard, setShowAddUserWizard] = useState(false);
-const [addUserStep, setAddUserStep] = useState<1 | 2 | 3 | 4>(1);
+const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1);
 
 const [addUserData, setAddUserData] = useState({
-  fullNameOrBusiness: '',
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
   entityType: '' as '' | 'Individual' | 'SME' | 'Corporation',
   country: '',
   city: '',
@@ -62,13 +65,8 @@ const [addUserData, setAddUserData] = useState({
   age: '25'
 });
 
-const [creditScoreResult, setCreditScoreResult] = useState<{
-  PD: number;
-  Credit_Score: number;
-  Risk_Level: string;
-} | null>(null);
-
-const [isCalculating, setIsCalculating] = useState(false);
+const [creditScoreResult, setCreditScoreResult] = useState<{ PD: number, Credit_Score: number, Risk_Level: string } | null>(null);
+const [isCalculatingScore, setIsCalculatingScore] = useState(false);
 
 const [addUserFiles, setAddUserFiles] = useState({
   repaymentProof: null as File | null,
@@ -82,7 +80,10 @@ const resetAddUserWizard = () => {
   setShowAddUserWizard(false);
   setAddUserStep(1);
   setAddUserData({
-    fullNameOrBusiness: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
     entityType: '',
     country: '',
     city: '',
@@ -99,27 +100,17 @@ const resetAddUserWizard = () => {
 
 // Validation
 const isStep1Valid =
-  addUserData.fullNameOrBusiness.trim().length > 0 &&
+  addUserData.firstName.trim().length > 0 &&
+  addUserData.lastName.trim().length > 0 &&
+  addUserData.email.trim().length > 0 &&
+  addUserData.phone.trim().length > 0 &&
   addUserData.entityType !== '' &&
   addUserData.country.trim().length > 0 &&
   addUserData.city.trim().length > 0;
 
-const isStep2Valid = (() => {
-  const rh = Number(addUserData.repaymentHistory);
-  return (
-    addUserData.monthlyIncomeOrRevenue.trim().length > 0 &&
-    addUserData.mobileMoneyUsage.trim().length > 0 &&
-    addUserData.repaymentHistory.trim().length > 0 &&
-    !Number.isNaN(rh) &&
-    rh >= 0 &&
-    rh <= 100 &&
-    addUserData.requestedCreditLimit.trim().length > 0
-  );
-})();
+const isStep2Valid = true;
 
-const isStep3Valid = !!addUserFiles.repaymentProof && !!addUserFiles.momoStatements;
-
-const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirmTruth;
+const canSubmit = isStep1Valid && addUserConfirmTruth;
 
 
   const removeToast = (id: string) => {
@@ -138,6 +129,40 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
     addToast(`Credit limit approved for ${selectedBorrower.name}`, 'success');
   };
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Function to fetch borrowers
+  const fetchBorrowers = async () => {
+    try {
+      const response = await api.get('/api/borrowers');
+      if (response.data.length > 0) {
+        setBorrowers(response.data.map((b: any) => ({
+          id: `BRW-${b.borrower_id}`,
+          name: `${b.first_name} ${b.last_name}`,
+          location: {
+            lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
+            lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
+            city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
+            country: "Rwanda"
+          },
+          creditScore: b.decision === 'Approved' ? 750 : 500,
+          riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
+          spendingTrend: [65, 59, 80, 81, 56, 55, 40],
+          repaymentHistory: 95,
+          mobileMoneyUsage: 2500,
+          approved: b.decision === 'Approved',
+          maxLimit: b.loan_amount || 5000
+        })));
+      } else {
+        setBorrowers(MOCK_BORROWERS);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch borrowers:", error);
+      const errorDetails = error.response?.data?.detail || error.message || "Unknown error";
+      const errorCode = error.code ? ` (${error.code})` : "";
+      addToast(`Failed to fetch borrowers: ${errorDetails}${errorCode}. Using mock data.`, "error");
+      setBorrowers(MOCK_BORROWERS);
+    }
+  };
 
   // Derived list of unique countries from the data for search suggestions
   const availableCountries = useMemo(() => {
@@ -219,40 +244,12 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
   useEffect(() => {
     setMounted(true);
 
-    const fetchBorrowers = async () => {
-      try {
-        const response = await api.get('/api/borrowers');
-        if (response.data.length > 0) {
-          // Map backend BorrowerResponse to frontend Borrower type
-          setBorrowers(response.data.map((b: any) => ({
-            id: `BRW-${b.borrower_id}`,
-            name: `${b.first_name} ${b.last_name}`,
-            location: {
-              lat: b.region_id === 1 ? -1.9441 : b.region_id === 2 ? -2.6000 : b.region_id === 3 ? -1.67409 : -1.9441 + (Math.random() - 0.5) * 0.5,
-              lng: b.region_id === 1 ? 30.0619 : b.region_id === 2 ? 29.7333 : b.region_id === 3 ? 29.2562 : 30.0619 + (Math.random() - 0.5) * 0.5,
-              city: b.region_id === 1 ? "Kigali" : b.region_id === 2 ? "Huye" : b.region_id === 3 ? "Rubavu" : "Kigali",
-              country: "Rwanda"
-            },
-            creditScore: b.decision === 'Approved' ? 750 : 500,
-            riskLevel: b.decision === 'Approved' ? 'Low' : b.decision === 'Denied' ? 'High' : 'Medium',
-            spendingTrend: [65, 59, 80, 81, 56, 55, 40],
-            repaymentHistory: 95,
-            mobileMoneyUsage: 2500,
-            approved: b.decision === 'Approved',
-            maxLimit: b.loan_amount || 5000
-          })));
-        } else {
-          setBorrowers(MOCK_BORROWERS);
-        }
-      } catch (error) {
-        console.error("Failed to fetch borrowers:", error);
-        setBorrowers(MOCK_BORROWERS);
-      } finally {
-        setIsLoading(false);
-      }
+    const loadData = async () => {
+      await fetchBorrowers();
+      setIsLoading(false);
     };
 
-    fetchBorrowers();
+    loadData();
 
     const geoJsonUrls = [
       'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson',
@@ -280,11 +277,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
   }, []);
 
   if (!mounted) return null;
-
-  // Stats for the header
-  const totalUsers = borrowers.length;
-  const avgScore = totalUsers > 0 ? Math.floor(borrowers.reduce((acc, b) => acc + b.creditScore, 0) / totalUsers) : 0;
-  const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
 
   return (
     <div className="relative w-full h-screen bg-slate-950 overflow-hidden text-white selection:bg-emerald-500/30">
@@ -526,451 +518,345 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
       </aside>
 
       {/* Right Panel - Borrower Detail OR Global/Regional Report */}
-      <aside className={`absolute top-6 right-6 w-80 md:w-96 flex flex-col gap-4 z-20 transition-all duration-500 translate-x-0 opacity-100`}>
-        {!selectedBorrower ? (
-          <div className={`${showAddUserWizard ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-900/80 text-white border-slate-800'} backdrop-blur-md border rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto animate-in slide-in-from-right-4 fade-in duration-500`}>
-
-            {(() => {
-// If country selected but no regional stats (no borrowers), show empty state
-              if (selectedCountryName && !regionalStats) {
-                return (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
-                    <div className="p-3 bg-slate-800/50 rounded-full mb-3">
-                      <Users className="w-6 h-6 text-slate-600" />
+      {/* Add User Modal */}
+      {showAddUserWizard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            {/* Top stepper */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-1">
+                {[
+                  { n: 1, label: 'Info', done: addUserStep > 1 || isStep1Valid },
+                  { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
+                  { n: 3, label: 'Docs', done: canSubmit }
+                ].map((s, idx, arr) => (
+                  <React.Fragment key={s.n}>
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all ${
+                          addUserStep === s.n ? 'bg-emerald-500 text-white border-emerald-500' :
+                          s.done ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' :
+                          'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}
+                      >
+                        {s.n}
+                      </div>
+                      <span className={`text-[10px] mt-1 font-medium ${
+                        addUserStep === s.n ? 'text-emerald-400' : 'text-slate-500'
+                      }`}>{s.label}</span>
                     </div>
-                    <h3 className="font-tech text-lg font-bold text-slate-400 mb-1">{selectedCountryName}</h3>
-                    <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
-                      No active credit entities currently monitored in this region.
-                    </p>
-                  </div>
-                );
-              }
-
-              const stats = (selectedCountryName && regionalStats) ? regionalStats : globalStats;
-              if (!stats) return null;
-
-              return (
-                <>
-                  
-             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-tech text-lg font-bold text-slate-200 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  {selectedCountryName ? `${selectedCountryName} Risk Report` : 'Global Risk Report'}
-                </h3>
-
-                {/* Add User Button (only on Global mode) */}
-                {!selectedCountryName && (
-                  <button
-                    onClick={() => {
-                      setShowAddUserWizard(true);
-                      setAddUserStep(1);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full
-                              bg-slate-800/80 border border-slate-700
-                              hover:bg-slate-700 transition-all
-                              shadow-md hover:shadow-lg"
-                    title="Add user"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.6}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
-                    </svg>
-                  </button>
-                )}
+                    {idx < arr.length - 1 && (
+                      <div className={`w-12 h-[2px] mx-2 mb-4 transition-all ${s.done ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                    )}
+                  </React.Fragment>
+                ))}
               </div>
 
-                {/* Adding a USER */}
-              {showAddUserWizard ? (
-              <div className="w-full h-full">
-                {/* Top stepper */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {/* Step circles: 1..4 */}
-                    {[
-                      { n: 1, label: 'Identity', done: addUserStep > 1 || isStep1Valid },
-                      { n: 2, label: 'Financial', done: addUserStep > 2 || isStep2Valid },
-                      { n: 3, label: 'Docs', done: isStep3Valid },
-                      { n: 4, label: 'Confirm', done: canSubmit }
-                    ].map((s, idx, arr) => (
-                      <div key={s.n} className="flex items-center">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
-                            s.done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-600 border-slate-300'
-                          }`}
-                          title={s.label}
-                        >
-                          {s.n}
-                        </div>
-                        {idx < arr.length - 1 && (
-                          <div className={`w-10 h-[2px] mx-2 ${arr[idx].done ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              <button
+                onClick={resetAddUserWizard}
+                className="text-slate-400 hover:text-white transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-                  {/* Close */}
-                  <button
-                    onClick={resetAddUserWizard}
-                    className="text-slate-500 hover:text-slate-900 transition-colors"
-                    title="Close"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+            {/* Step content */}
+            {addUserStep === 1 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">First Name</label>
+                    <input
+                      value={addUserData.firstName}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Iris"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Last Name</label>
+                    <input
+                      value={addUserData.lastName}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Kayigamba"
+                    />
+                  </div>
                 </div>
 
-                {/* Step content */}
-                {addUserStep === 1 && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Full Name / Business Name</label>
-                      <input
-                        value={addUserData.fullNameOrBusiness}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, fullNameOrBusiness: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. Iris Kayigamba / Trustchain Ltd"
-                      />
-                    </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Email</label>
+                  <input
+                    type="email"
+                    value={addUserData.email}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, email: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. iris@example.com"
+                  />
+                </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Entity Type</label>
-                      <select
-                        value={addUserData.entityType}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      >
-                        <option value="">Select…</option>
-                        <option value="Individual">Individual</option>
-                        <option value="SME">SME</option>
-                        <option value="Corporation">Corporation</option>
-                      </select>
-                    </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Phone</label>
+                  <input
+                    type="tel"
+                    value={addUserData.phone}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. +250 123 456 789"
+                  />
+                </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Country</label>
-                        <input
-                          value={addUserData.country}
-                          onChange={(e) => setAddUserData(prev => ({ ...prev, country: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          placeholder="e.g. Rwanda"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">City</label>
-                        <input
-                          value={addUserData.city}
-                          onChange={(e) => setAddUserData(prev => ({ ...prev, city: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                          placeholder="e.g. Kigali"
-                        />
-                      </div>
-                    </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Entity Type</label>
+                  <select
+                    value={addUserData.entityType}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, entityType: e.target.value as any }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select…</option>
+                    <option value="Individual">Individual</option>
+                    <option value="SME">SME</option>
+                    <option value="Corporation">Corporation</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Country</label>
+                    <input
+                      value={addUserData.country}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, country: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Rwanda"
+                    />
                   </div>
-                )}
-
-                {addUserStep === 2 && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Monthly Income / Business Revenue</label>
-                      <input
-                        value={addUserData.monthlyIncomeOrRevenue}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 1,200"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Mobile Money Usage / Month</label>
-                      <input
-                        value={addUserData.mobileMoneyUsage}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Repayment History (%)</label>
-                      <input
-                        value={addUserData.repaymentHistory}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="0 - 100"
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700">Requested Credit Limit</label>
-                      <input
-                        value={addUserData.requestedCreditLimit}
-                        onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                        placeholder="e.g. 5,000"
-                      />
-                    </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">City</label>
+                    <input
+                      value={addUserData.city}
+                      onChange={(e) => setAddUserData(prev => ({ ...prev, city: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g. Kigali"
+                    />
                   </div>
-                )}
+                </div>
+              </div>
+            )}
 
-                {addUserStep === 3 && (
-                  <div className="space-y-4">
-                    <div className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                      <Upload className="w-4 h-4" /> Upload Documents
-                    </div>
+            {addUserStep === 2 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Monthly Income / Business Revenue</label>
+                  <input
+                    value={addUserData.monthlyIncomeOrRevenue}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, monthlyIncomeOrRevenue: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 1,200"
+                  />
+                </div>
 
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Repayment history proof (required)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Mobile Money Usage / Month</label>
+                  <input
+                    value={addUserData.mobileMoneyUsage}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, mobileMoneyUsage: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 400"
+                  />
+                </div>
 
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">MoMo statements (required)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Repayment History (%)</label>
+                  <input
+                    value={addUserData.repaymentHistory}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, repaymentHistory: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="0 - 100"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">Must be between 0 and 100.</p>
+                </div>
 
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700">Other supporting documents (optional)</label>
-                        <input
-                          type="file"
-                          onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
-                          className="mt-1 w-full text-sm"
-                        />
-                      </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Requested Credit Limit</label>
+                  <input
+                    value={addUserData.requestedCreditLimit}
+                    onChange={(e) => setAddUserData(prev => ({ ...prev, requestedCreditLimit: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 5,000"
+                  />
+                </div>
 
-                      <div className="pt-3 border-t border-slate-200">
-                        <label className="flex items-start gap-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={addUserConfirmTruth}
-                            onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
-                            className="mt-1"
-                          />
-                          <span>I confirm that all the information provided is true and complete.</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {addUserStep === 4 && creditScoreResult && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col items-center text-center">
-                       <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 ${
-                         creditScoreResult.Risk_Level === 'Low' ? 'bg-emerald-500/20 text-emerald-600' :
-                         creditScoreResult.Risk_Level === 'Medium' ? 'bg-amber-500/20 text-amber-600' :
-                         'bg-red-500/20 text-red-600'
-                       }`}>
-                          <ShieldCheck className="w-10 h-10" />
-                       </div>
-                       <h4 className="text-xl font-bold text-slate-900">Score Generated</h4>
-                       <div className="mt-2 text-4xl font-tech font-bold text-slate-900">{creditScoreResult.Credit_Score}</div>
-                       <div className={`mt-1 text-sm font-bold px-3 py-1 rounded-full ${
-                         creditScoreResult.Risk_Level === 'Low' ? 'bg-emerald-100 text-emerald-700' :
-                         creditScoreResult.Risk_Level === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                         'bg-red-100 text-red-700'
-                       }`}>
-                         {creditScoreResult.Risk_Level.toUpperCase()} RISK
-                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                       <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">Prob. of Default</div>
-                          <div className="text-lg font-mono font-bold text-slate-900">{Math.round(creditScoreResult.PD * 100)}%</div>
-                       </div>
-                       <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">Eligibility</div>
-                          <div className="text-sm font-bold text-emerald-600">HIGHLY ELIGIBLE</div>
-                       </div>
-                    </div>
-                  </div>
-                )}
-
-                        {/* Navigation */}
-                        <div className="mt-5 flex items-center justify-between">
-                          <button
-                            onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
-                            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:hover:text-slate-600"
-                            disabled={addUserStep === 1}
-                          >
-                            <ChevronLeft className="w-4 h-4" /> Previous
-                          </button>
-
-                          {addUserStep < 3 ? (
-                            <button
-                              onClick={async () => {
-                                if (addUserStep === 1 && !isStep1Valid) return;
-                                if (addUserStep === 2 && !isStep2Valid) {
-                                   return;
-                                }
-                                if (addUserStep === 2) {
-                                  // Call Credit Score API when moving from Step 2
-                                  setIsCalculating(true);
-                                  try {
-                                    const response = await api.post('/credit-score', {
-                                      LIMIT_BAL: parseFloat(addUserData.requestedCreditLimit) || 0,
-                                      AGE: parseFloat(addUserData.age) || 25,
-                                      avg_pay_delay: 0, // Heuristic defaults for now
-                                      credit_utilization: 0.3,
-                                      payment_ratio: (parseFloat(addUserData.repaymentHistory) / 100) || 0.9
-                                    });
-                                    setCreditScoreResult(response.data);
-                                    addToast(`Credit analysis complete for ${addUserData.fullNameOrBusiness}`, 'success');
-                                  } catch (err: any) {
-                                    console.error("Credit score calculation failed", err);
-                                    const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
-                                    const errorCode = err.code ? ` (${err.code})` : "";
-                                    addToast(`Failed to calculate credit score: ${errorDetails}${errorCode}. Using fallback.`, "error");
-                                    // Fallback mock
-                                    setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
-                                  } finally {
-                                    setIsCalculating(false);
-                                  }
-                                }
-                                setAddUserStep(prev => (prev + 1) as any);
-                              }}
-                              disabled={isCalculating}
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              {isCalculating ? 'Processing...' : (
-                                <>Next <ChevronRight className="w-4 h-4" /></>
-                              )}
-                            </button>
-                          ) : addUserStep === 3 ? (
-                             <button
-                               onClick={() => setAddUserStep(4)}
-                               disabled={!canSubmit}
-                               className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                                 canSubmit
-                                   ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-                                   : 'bg-emerald-600/30 text-white/60 cursor-not-allowed'
-                               }`}
-                             >
-                               Review Analysis
-                             </button>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                if (!canSubmit) return;
-                                try {
-                                  const names = addUserData.fullNameOrBusiness.split(' ');
-                                  const firstName = names[0] || "Unknown";
-                                  const lastName = names.slice(1).join(' ') || "User";
-
-                                  await api.post('/api/borrowers', {
-                                    first_name: firstName,
-                                    last_name: lastName,
-                                    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-                                    loan_amount: parseFloat(addUserData.requestedCreditLimit),
-                                    loan_date: new Date().toISOString().split('T')[0],
-                                    decision: creditScoreResult?.Risk_Level === 'High' ? 'Denied' : 'Approved',
-                                    region_id: 1 // Default to Kigali
-                                  });
-
-                                  addToast(`New entity "${addUserData.fullNameOrBusiness}" integrated successfully`, 'success');
-
-                                  // Refresh borrowers list
-                                  const response = await api.get('/api/borrowers');
-                                  setBorrowers(response.data.map((b: any) => ({
-                                      id: `BRW-${b.borrower_id}`,
-                                      name: `${b.first_name} ${b.last_name}`,
-                                      location: {
-                                        lat: b.region_id === 1 ? -1.9441 + (Math.random() - 0.5) * 0.2 : -2.6000 + (Math.random() - 0.5) * 0.2,
-                                        lng: b.region_id === 1 ? 30.0619 + (Math.random() - 0.5) * 0.2 : 29.7333 + (Math.random() - 0.5) * 0.2,
-                                        city: b.region_id === 1 ? "Kigali" : "Huye",
-                                        country: "Rwanda"
-                                      },
-                                      creditScore: b.decision === 'Approved' ? 750 : 500,
-                                      riskLevel: b.decision === 'Approved' ? 'Low' : 'High',
-                                      spendingTrend: [65, 59, 80, 81, 56, 55, 40],
-                                      repaymentHistory: 95,
-                                      mobileMoneyUsage: 2500,
-                                      approved: b.decision === 'Approved',
-                                      maxLimit: b.loan_amount
-                                  })));
-
-                                  resetAddUserWizard();
-                                } catch (err: any) {
-                                  console.error("Submission failed", err);
-                                  const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
-                                  const errorCode = err.code ? ` (${err.code})` : "";
-                                  addToast(`Failed to send data to backend: ${errorDetails}${errorCode}`, "error");
-                                }
-                              }}
-                              className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg"
-                            >
-                              Finalize & Submit
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                <div className="pt-4">
+                  <button
+                    onClick={async () => {
+                      setIsCalculatingScore(true);
+                      try {
+                        const response = await api.post('/credit-score', {
+                          LIMIT_BAL: parseFloat(addUserData.requestedCreditLimit) || 5000,
+                          AGE: parseFloat(addUserData.age) || 25,
+                          avg_pay_delay: 0,
+                          credit_utilization: 0.3,
+                          payment_ratio: (parseFloat(addUserData.repaymentHistory) / 100) || 0.9
+                        });
+                        setCreditScoreResult(response.data);
+                        addToast(`Credit analysis complete for ${addUserData.firstName} ${addUserData.lastName}`, 'success');
+                      } catch (err: any) {
+                        console.error("Credit score calculation failed", err);
+                        const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
+                        const errorCode = err.code ? ` (${err.code})` : "";
+                        addToast(`Failed to calculate credit score: ${errorDetails}${errorCode}. Using fallback.`, "error");
+                        setCreditScoreResult({ PD: 0.05, Credit_Score: 780, Risk_Level: "Low" });
+                      } finally {
+                        setIsCalculatingScore(false);
+                      }
+                    }}
+                    disabled={isCalculatingScore || !addUserData.repaymentHistory}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-900/40 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    {isCalculatingScore ? (
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                     ) : (
-                      <>
-                        {/* Initially Existing report UI AS IT WAS  */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
-                            <div className="font-mono text-emerald-400 font-bold text-lg">
-                              ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
-                          </div>
-                          <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
-                            <div className="font-mono text-red-400 font-bold text-lg">
-                              {stats.highestRisk?.creditScore || '-'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
-                          </div>
-                        </div>
-
-                        <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
-                          {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
-                        </h4>
-                        <div className="space-y-2">
-                          {stats.topRisky.map(b => (
-                            <div
-                              key={b.id}
-                              onClick={() => setSelectedBorrower(b)}
-                              className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
-                            >
-                              <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
-                                <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
-                                <div className="text-[10px] text-slate-600">SCORE</div>
-                              </div>
-                            </div>
-                          ))}
-                          {stats.topRisky.length === 0 && (
-                            <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
-                          )}
-                        </div>
-                      </>
+                      <Activity className="w-4 h-4 group-hover:animate-pulse" />
                     )}
-                </>
-              );
-            })()}
+                    {creditScoreResult ? 'Re-calculate Risk Profile' : 'Calculate Risk Profile'}
+                  </button>
+
+                  {creditScoreResult && (
+                    <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-400 uppercase tracking-widest">Initial Assessment</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          creditScoreResult.Risk_Level === 'Low' ? 'text-emerald-400 bg-emerald-500/10' :
+                          creditScoreResult.Risk_Level === 'Medium' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                        }`}>
+                          {creditScoreResult.Risk_Level.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-3xl font-tech font-bold text-white">{creditScoreResult.Credit_Score}</span>
+                        <span className="text-[10px] text-slate-500">SCORE</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {addUserStep === 3 && (
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-emerald-500" /> Upload Documents
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Repayment history proof (required)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, repaymentProof: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">MoMo statements (required)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, momoStatements: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300">Other supporting documents (optional)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => setAddUserFiles(prev => ({ ...prev, otherDocs: e.target.files?.[0] || null }))}
+                      className="mt-1 w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    />
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-700">
+                    <label className="flex items-start gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={addUserConfirmTruth}
+                        onChange={(e) => setAddUserConfirmTruth(e.target.checked)}
+                        className="mt-1 accent-emerald-500"
+                      />
+                      <span>I confirm that all the information provided is true and complete.</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                onClick={() => setAddUserStep(prev => (prev === 1 ? 1 : (prev - 1) as any))}
+                className="flex items-center gap-2 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400 transition-colors"
+                disabled={addUserStep === 1}
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+
+              {addUserStep < 3 ? (
+                <button
+                  onClick={() => {
+                    if (addUserStep === 1 && !isStep1Valid) return;
+                    if (addUserStep === 2 && !isStep2Valid) return;
+                    setAddUserStep(prev => (prev + 1) as any);
+                  }}
+                  disabled={(addUserStep === 1 && !isStep1Valid) || (addUserStep === 2 && !isStep2Valid)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!canSubmit) return;
+                    try {
+                      await api.post('/api/borrowers', {
+                        first_name: addUserData.firstName,
+                        last_name: addUserData.lastName,
+                        email: addUserData.email,
+                        phone: addUserData.phone,
+                        loan_amount: parseFloat(addUserData.requestedCreditLimit) || 5000,
+                        loan_date: new Date().toISOString().split('T')[0],
+                        decision: 'Approved',
+                        region_id: 1,
+                        credit_score: creditScoreResult?.Credit_Score,
+                        risk_level: creditScoreResult?.Risk_Level,
+                        probability_of_default: creditScoreResult?.PD
+                      });
+
+                      addToast(`New entity "${addUserData.firstName} ${addUserData.lastName}" integrated successfully`, 'success');
+                      await fetchBorrowers();
+                      resetAddUserWizard();
+                    } catch (err: any) {
+                      console.error("Submission failed", err);
+                      const errorDetails = err.response?.data?.detail || err.message || "Unknown error";
+                      const errorCode = err.code ? ` (${err.code})` : "";
+                      addToast(`Failed to send data to backend: ${errorDetails}${errorCode}`, "error");
+                    }
+                  }}
+                  disabled={!canSubmit}
+                  className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Submit
+                </button>
+              )}
+            </div>
           </div>
-        ) : (
+        </div>
+      )}
+
+      {/* Right Panel - Borrower Detail OR Global/Regional Report */}
+      <aside className="absolute top-24 right-6 w-96 max-h-[85vh] flex flex-col gap-4 z-20 overflow-y-auto custom-scrollbar">
+        {showAddUserWizard ? null : selectedBorrower ? (
           <div className="bg-slate-900/90 backdrop-blur-xl border border-emerald-500/30 rounded-xl overflow-hidden shadow-2xl shadow-emerald-900/20 pointer-events-auto">
 
             {/* Header with Close */}
@@ -1044,8 +930,131 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
               </button>
             </div>
           </div>
-        )}
+        ) : (() => {
+          const stats = selectedCountryName ? regionalStats : globalStats;
+          if (!stats) return null;
+          
+          return (
+            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl shadow-black/50 pointer-events-auto">
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Exposure</div>
+                  <div className="font-mono text-emerald-400 font-bold text-lg">
+                    ${stats.highestLimit?.maxLimit?.toLocaleString() || '0'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">{stats.highestLimit?.name || 'N/A'}</div>
+                </div>
+                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Highest Risk</div>
+                  <div className="font-mono text-red-400 font-bold text-lg">
+                    {stats.highestRisk?.creditScore || '-'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">{stats.highestRisk?.name || 'N/A'}</div>
+                </div>
+              </div>
+
+              <h4 className="text-[10px] uppercase tracking-widest text-slate-500 mb-3 border-b border-slate-800 pb-2">
+                {selectedCountryName ? 'Top Regional Entities' : 'Top Critical Entities'}
+              </h4>
+              <div className="space-y-2">
+                {stats.topRisky.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => setSelectedBorrower(b)}
+                    className="flex justify-between items-center p-2 rounded hover:bg-slate-800 cursor-pointer group"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">{b.name}</span>
+                      <span className="text-[10px] text-slate-500">{b.location.city} • {b.id}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-mono font-bold text-red-400">{b.creditScore}</div>
+                      <div className="text-[10px] text-slate-600">SCORE</div>
+                    </div>
+                  </div>
+                ))}
+                {stats.topRisky.length === 0 && (
+                  <div className="text-xs text-slate-500 p-2 text-center italic">No high risk entities found in this region.</div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </aside>
+
+      {/* Add User Button */}
+      <button
+        onClick={() => setShowAddUserWizard(true)}
+        className="absolute bottom-24 right-6 z-30 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 pointer-events-auto"
+        title="Add New Entity"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Bottom Center Compact Stats Bar */}
+      {(() => {
+        const totalUsers = borrowers.length;
+        const avgScore = borrowers.length > 0 ? Math.floor(borrowers.reduce((sum, b) => sum + b.creditScore, 0) / borrowers.length) : 0;
+        const highRiskCount = borrowers.filter(b => b.riskLevel === 'High').length;
+        
+        return (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
+            <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
+              {/* TA */}
+              <div className="relative group flex items-center gap-2">
+                <Users className="w-4 h-4 text-slate-400" />
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
+                  <span className="font-mono font-bold text-sm text-white">
+                    {totalUsers.toLocaleString()}
+                  </span>
+                </div>
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                    Total Active
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-slate-700/50" />
+
+              {/* AS */}
+              <div className="relative group flex items-center gap-2">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
+                  <span className="font-mono font-bold text-sm text-cyan-400">
+                    {avgScore}
+                  </span>
+                </div>
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                    Average Score
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-slate-700/50" />
+
+              {/* HR */}
+              <div className="relative group flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
+                  <span className="font-mono font-bold text-sm text-red-400">
+                    {highRiskCount}
+                  </span>
+                </div>
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
+                    High Risk
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODAL: Full Report */}
       <Modal
@@ -1153,70 +1162,6 @@ const canSubmit = isStep1Valid && isStep2Valid && isStep3Valid && addUserConfirm
           />
         ))}
       </div>
-        {/* Bottom Center Compact Stats Bar */}
-<div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 pointer-events-auto hidden md:block">
-  <div className="flex items-center gap-6 bg-slate-900/50 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/50 shadow-[0_0_20px_rgba(0,0,0,0.45)]">
-
-    {/* TA */}
-    <div className="relative group flex items-center gap-2">
-      <Users className="w-4 h-4 text-slate-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-slate-400 font-bold tracking-widest">TA</span>
-        <span className="font-mono font-bold text-sm text-white">
-          {totalUsers.toLocaleString()}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          Total Active
-        </div>
-      </div>
-    </div>
-
-    <div className="w-px h-6 bg-slate-700/50" />
-
-    {/* AS */}
-    <div className="relative group flex items-center gap-2">
-      <Activity className="w-4 h-4 text-cyan-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-cyan-300 font-bold tracking-widest">AS</span>
-        <span className="font-mono font-bold text-sm text-cyan-400">
-          {avgScore}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          Average Score
-        </div>
-      </div>
-    </div>
-
-    <div className="w-px h-6 bg-slate-700/50" />
-
-    {/* HR */}
-    <div className="relative group flex items-center gap-2">
-      <AlertTriangle className="w-4 h-4 text-red-400" />
-      <div className="flex items-baseline gap-2">
-        <span className="text-[10px] text-red-300 font-bold tracking-widest">HR</span>
-        <span className="font-mono font-bold text-sm text-red-400">
-          {highRiskCount}
-        </span>
-      </div>
-
-      {/* Tooltip */}
-      <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="text-[10px] px-2 py-1 rounded bg-slate-950/90 border border-slate-700 text-slate-200 whitespace-nowrap">
-          High Risk
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
 
       {/* Footer / System Status */}
       <footer className="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">

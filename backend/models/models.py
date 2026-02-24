@@ -16,7 +16,7 @@ class Borrower(Base):
     borrower_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    email = Column(String(150), unique=True, index=True)
+    email = Column(String(150), unique=False, index=True, nullable=True)
     phone = Column(String(20))
     loan_amount = Column(Float)
     loan_date = Column(Date)

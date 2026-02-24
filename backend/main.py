@@ -61,6 +61,12 @@ class BorrowerCreate(BaseModel):
     decision: Optional[str] = "Pending"
     region_id: Optional[int] = None
 
+class UserRegistration(BaseModel):
+    fullNameOrBusiness: str
+    entityType: str
+    country: str
+    city: str
+
 class BorrowerResponse(BaseModel):
     borrower_id: int
     first_name: str
@@ -106,6 +112,8 @@ origins = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(
@@ -118,11 +126,49 @@ app.add_middleware(
 
 @app.post("/api/borrowers", response_model=BorrowerResponse, status_code=201)
 def create_borrower(borrower: BorrowerCreate, db: Session = Depends(get_db)):
-    db_borrower = models.Borrower(**borrower.dict())
+    borrower_data = borrower.dict()
+    # Generate unique email if not provided
+    if not borrower_data.get('email'):
+        borrower_data['email'] = f"{borrower_data['first_name'].lower()}.{borrower_data['last_name'].lower()}@trustchain.local"
+    
+    db_borrower = models.Borrower(**borrower_data)
     db.add(db_borrower)
     db.commit()
     db.refresh(db_borrower)
     return db_borrower
+
+@app.post("/api/register-user", status_code=201)
+def register_user(user: UserRegistration, db: Session = Depends(get_db)):
+    # Split name into first and last name
+    name_parts = user.fullNameOrBusiness.strip().split(maxsplit=1)
+    first_name = name_parts[0] if len(name_parts) > 0 else user.fullNameOrBusiness
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
+    
+    # Find or create region
+    region = db.query(models.Region).filter(models.Region.region_name == user.country).first()
+    if not region:
+        region = models.Region(region_name=user.country)
+        db.add(region)
+        db.commit()
+        db.refresh(region)
+    
+    # Create borrower
+    db_borrower = models.Borrower(
+        first_name=first_name,
+        last_name=last_name,
+        decision="Pending",
+        region_id=region.region_id
+    )
+    db.add(db_borrower)
+    db.commit()
+    db.refresh(db_borrower)
+    
+    return {
+        "borrower_id": db_borrower.borrower_id,
+        "message": "User registered successfully",
+        "entity_type": user.entityType,
+        "location": f"{user.city}, {user.country}"
+    }
 
 @app.get("/api/borrowers", response_model=List[BorrowerResponse])
 def get_all_borrowers(
